@@ -24,14 +24,17 @@ targets = ["thumbv6m-none-eabi"]
 bare-metal = { version = "1.0.0" }
 cast = "0.3.0"
 cortex-m = { version = "0.7.7", features = ["critical-section-single-core"] }
-embedded-hal = { version = "0.2.7", features = ["unproven"] }
+embedded-hal = "1.0.0"
 embedded-time = "0.12.1"
+embedded-hal-nb = "1.0.0"
+embedded-dma = "0.2.0"
 nb = "1.1.0"
 void = { version = "1.0.2", default-features = false }
 
 [dependencies.py32f0]
 version = "0.1.1"
 features = []
+path = "../py32-rs/py32f0"
 
 [dev-dependencies]
 cortex-m-rt = "0.7.3"

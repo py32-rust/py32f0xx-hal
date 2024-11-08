@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 //! API for the integrate SPI peripherals
 //!
 //! The spi bus acts as the master (generating the clock) and you need to handle the CS separately.
@@ -37,11 +39,10 @@
 //! });
 //! ```
 
-use core::cell::UnsafeCell;
 use core::marker::PhantomData;
-use core::{ops::Deref, ptr};
+use core::ops::Deref;
 
-pub use embedded_hal::spi::{Mode, Phase, Polarity};
+pub use embedded_hal::spi::{ErrorKind, Mode, Phase, Polarity};
 
 // TODO Put this inside the macro
 // Currently that causes a compiler panic
@@ -71,6 +72,16 @@ pub enum Error {
     ModeFault,
     /// CRC error
     Crc,
+}
+
+impl ::embedded_hal::spi::Error for Error {
+    fn kind(&self) -> ErrorKind {
+        match self {
+            Error::Overrun => ErrorKind::Overrun,
+            Error::ModeFault => ErrorKind::ModeFault,
+            Error::Crc => ErrorKind::Other,
+        }
+    }
 }
 
 /// SPI abstraction
@@ -400,16 +411,64 @@ where
     pub fn release(self) -> (SPI, (SCKPIN, MISOPIN, MOSIPIN)) {
         (self.spi, self.pins)
     }
+
+    pub fn ptr(&self) -> *const SpiRegisterBlock {
+        self.spi.deref()
+    }
 }
 
-impl<SPI, SCKPIN, MISOPIN, MOSIPIN> ::embedded_hal::blocking::spi::Transfer<u8>
+impl<SPI, SCKPIN, MISOPIN, MOSIPIN> ::embedded_hal::spi::ErrorType
     for Spi<SPI, SCKPIN, MISOPIN, MOSIPIN, EightBit>
 where
     SPI: Deref<Target = SpiRegisterBlock>,
 {
     type Error = Error;
+}
 
-    fn transfer<'w>(&mut self, words: &'w mut [u8]) -> Result<&'w [u8], Self::Error> {
+impl<SPI, SCKPIN, MISOPIN, MOSIPIN> ::embedded_hal::spi::SpiBus
+    for Spi<SPI, SCKPIN, MISOPIN, MOSIPIN, EightBit>
+where
+    SPI: Deref<Target = SpiRegisterBlock>,
+{
+    fn read(&mut self, words: &mut [u8]) -> Result<(), Self::Error> {
+        // We want to transfer bidirectionally, make sure we're in the correct mode
+        self.set_bidi();
+
+        for word in words.iter_mut() {
+            nb::block!(self.check_send())?;
+            self.send_u8(0xFF);
+            nb::block!(self.check_read())?;
+            *word = self.read_u8();
+        }
+        Ok(())
+    }
+
+    fn write(&mut self, words: &[u8]) -> Result<(), Self::Error> {
+        self.set_send_only();
+        for word in words.iter() {
+            nb::block!(self.check_send())?;
+            self.send_u8(*word);
+            nb::block!(self.check_read())?;
+            self.read_u8();
+        }
+        Ok(())
+    }
+
+    fn transfer(&mut self, read: &mut [u8], write: &[u8]) -> Result<(), Self::Error> {
+        // We want to transfer bidirectionally, make sure we're in the correct mode
+        self.set_bidi();
+
+        for (rd_word, wr_word) in read.iter_mut().zip(write.iter()) {
+            nb::block!(self.check_send())?;
+            self.send_u8(*wr_word);
+            nb::block!(self.check_read())?;
+            *rd_word = self.read_u8();
+        }
+
+        Ok(())
+    }
+
+    fn transfer_in_place(&mut self, words: &mut [u8]) -> Result<(), Self::Error> {
         // We want to transfer bidirectionally, make sure we're in the correct mode
         self.set_bidi();
 
@@ -420,83 +479,11 @@ where
             *word = self.read_u8();
         }
 
-        Ok(words)
-    }
-}
-
-impl<SPI, SCKPIN, MISOPIN, MOSIPIN> ::embedded_hal::blocking::spi::Write<u8>
-    for Spi<SPI, SCKPIN, MISOPIN, MOSIPIN, EightBit>
-where
-    SPI: Deref<Target = SpiRegisterBlock>,
-{
-    type Error = Error;
-
-    fn write(&mut self, words: &[u8]) -> Result<(), Self::Error> {
-        let mut bufcap: u8 = 0;
-
-        // We only want to send, so we don't need to worry about the receive buffer overflowing
-        self.set_send_only();
-
-        // Make sure we don't continue with an error condition
-        nb::block!(self.check_send())?;
-
-        // We have a 32 bit buffer to work with, so let's fill it before checking the status
-        for word in words {
-            // Loop as long as our send buffer is full
-            while bufcap == 0 {
-                bufcap = self.send_buffer_size();
-            }
-
-            self.send_u8(*word);
-            bufcap -= 1;
-        }
-
-        // Do one last status register check before continuing
-        nb::block!(self.check_send()).ok();
         Ok(())
     }
-}
 
-impl<SPI, SCKPIN, MISOPIN, MOSIPIN> ::embedded_hal::blocking::spi::Transfer<u16>
-    for Spi<SPI, SCKPIN, MISOPIN, MOSIPIN, SixteenBit>
-where
-    SPI: Deref<Target = SpiRegisterBlock>,
-{
-    type Error = Error;
-
-    fn transfer<'w>(&mut self, words: &'w mut [u16]) -> Result<&'w [u16], Self::Error> {
-        // We want to transfer bidirectionally, make sure we're in the correct mode
-        self.set_bidi();
-
-        for word in words.iter_mut() {
-            nb::block!(self.check_send())?;
-            self.send_u16(*word);
-            nb::block!(self.check_read())?;
-            *word = self.read_u16();
-        }
-
-        Ok(words)
-    }
-}
-
-impl<SPI, SCKPIN, MISOPIN, MOSIPIN> ::embedded_hal::blocking::spi::Write<u16>
-    for Spi<SPI, SCKPIN, MISOPIN, MOSIPIN, SixteenBit>
-where
-    SPI: Deref<Target = SpiRegisterBlock>,
-{
-    type Error = Error;
-
-    fn write(&mut self, words: &[u16]) -> Result<(), Self::Error> {
-        // We only want to send, so we don't need to worry about the receive buffer overflowing
-        self.set_send_only();
-
-        for word in words {
-            nb::block!(self.check_send())?;
-            self.send_u16(*word);
-        }
-
-        // Do one last status register check before continuing
-        nb::block!(self.check_send()).ok();
+    fn flush(&mut self) -> Result<(), Self::Error> {
+        // no delays required after reads for bus to be idle
         Ok(())
     }
 }

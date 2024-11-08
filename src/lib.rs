@@ -13,18 +13,18 @@ pub use py32f0::py32f003 as pac;
 #[cfg(feature = "py32f030")]
 pub use py32f0::py32f030 as pac;
 
+//#[cfg(feature = "device-selected")]
+//pub mod adc;
 #[cfg(feature = "device-selected")]
-pub mod adc;
-#[cfg(feature = "device-selected")]
-pub mod delay;
+pub mod dma;
 #[cfg(feature = "device-selected")]
 pub mod gpio;
-#[cfg(feature = "device-selected")]
-pub mod i2c;
+//#[cfg(feature = "device-selected")]
+//pub mod i2c;
 #[cfg(feature = "device-selected")]
 pub mod prelude;
-#[cfg(feature = "device-selected")]
-pub mod pwm;
+//#[cfg(feature = "device-selected")]
+//pub mod pwm;
 #[cfg(feature = "device-selected")]
 pub mod rcc;
 #[cfg(feature = "device-selected")]
@@ -33,7 +33,7 @@ pub mod serial;
 pub mod spi;
 #[cfg(feature = "device-selected")]
 pub mod time;
-#[cfg(feature = "device-selected")]
-pub mod timers;
-#[cfg(feature = "device-selected")]
-pub mod watchdog;
+//#[cfg(feature = "device-selected")]
+//pub mod timers;
+//#[cfg(feature = "device-selected")]
+//pub mod watchdog;

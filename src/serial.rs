@@ -59,12 +59,9 @@
 //! ```
 
 use core::{
-    convert::Infallible,
     fmt::{Result, Write},
     ops::Deref,
 };
-
-use embedded_hal::prelude::*;
 
 use crate::gpio::{gpioa::*, gpiob::*};
 use crate::gpio::{Alternate, AF1};
@@ -103,6 +100,8 @@ pub enum Event {
     Txe,
     /// Idle line state detected
     Idle,
+    /// Transmission complete
+    Txc,
 }
 
 pub trait TxPin<USART> {}
@@ -312,6 +311,9 @@ macro_rules! usart {
                         Event::Idle => {
                             self.usart.cr1.modify(|_, w| w.idleie().set_bit())
                         },
+                        Event::Txc => {
+                            self.usart.cr1.modify(|_, w| w.tcie().set_bit())
+                        },
                     }
                 }
 
@@ -326,6 +328,9 @@ macro_rules! usart {
                         },
                         Event::Idle => {
                             self.usart.cr1.modify(|_, w| w.idleie().clear_bit())
+                        },
+                        Event::Txc => {
+                            self.usart.cr1.modify(|_, w| w.tcie().clear_bit())
                         },
                     }
                 }
@@ -350,6 +355,49 @@ macro_rules! usart {
                     self.usart.sr.read().tc().bit_is_set()
                 }
             }
+
+            impl Tx<$USART> {
+
+                /// Starts listening for TXE interrupt event
+                pub fn listen_txe(&mut self) {
+                    unsafe { (*self.usart).cr1.modify(|_, w| w.txeie().set_bit()) }
+                }
+
+                /// Stop listening for TXE interrupt event
+                pub fn unlisten_txe(&mut self) {
+                    unsafe { (*self.usart).cr1.modify(|_, w| w.txeie().clear_bit()) }
+                }
+
+                /// Returns true if the rx register is not empty (and can be read)
+                pub fn is_txe(&self) -> bool {
+                    unsafe { (*self.usart).sr.read().txe().bit_is_set() }
+                }
+
+                /// Returns true if transmission is complete
+                pub fn is_tx_complete(&self) -> bool {
+                    unsafe { (*self.usart).sr.read().tc().bit_is_set() }
+                }
+            }
+
+            impl Rx<$USART> {
+
+                /// Starts listening for RXNE interrupt event
+                pub fn listen_rxne(&mut self) {
+                    unsafe { (*self.usart).cr1.modify(|_, w| w.rxneie().set_bit()) }
+                }
+
+                /// Stop listening for RXNE interrupt event
+                pub fn unlisten_rxne(&mut self) {
+                    unsafe { (*self.usart).cr1.modify(|_, w| w.rxneie().clear_bit()) }
+                }
+
+                /// Returns true if the rx register is not empty (and can be read)
+                pub fn is_rx_not_empty(&self) -> bool {
+                    unsafe { (*self.usart).sr.read().rxne().bit_is_set() }
+                }
+
+            }
+
         )+
     }
 }
@@ -369,37 +417,56 @@ usart! {
     USART2: (usart2, usart2tx, usart2rx,usart2en, apbenr1),
 }
 
-impl<USART> embedded_hal::serial::Read<u8> for Rx<USART>
+use embedded_hal_nb::{serial, serial::ErrorKind, serial::Write as OtherWrite};
+
+impl serial::Error for Error {
+    fn kind(&self) -> ErrorKind {
+        match self {
+            Error::Overrun => ErrorKind::Overrun,
+            Error::Framing => ErrorKind::FrameFormat,
+            Error::Parity => ErrorKind::Parity,
+            Error::Noise => ErrorKind::Noise,
+        }
+    }
+}
+
+impl<USART> serial::ErrorType for Rx<USART> {
+    type Error = Error;
+}
+
+impl<USART> embedded_hal_nb::serial::Read<u8> for Rx<USART>
 where
     USART: Deref<Target = SerialRegisterBlock>,
 {
-    type Error = Error;
-
     /// Tries to read a byte from the uart
-    fn read(&mut self) -> nb::Result<u8, Error> {
+    fn read(&mut self) -> nb::Result<u8, Self::Error> {
         read(self.usart)
     }
 }
 
-impl<USART, TXPIN, RXPIN> embedded_hal::serial::Read<u8> for Serial<USART, TXPIN, RXPIN>
+impl<USART, TXPIN, RXPIN> serial::ErrorType for Serial<USART, TXPIN, RXPIN> {
+    type Error = Error;
+}
+
+impl<USART, TXPIN, RXPIN> embedded_hal_nb::serial::Read<u8> for Serial<USART, TXPIN, RXPIN>
 where
     USART: Deref<Target = SerialRegisterBlock>,
     RXPIN: RxPin<USART>,
 {
-    type Error = Error;
-
     /// Tries to read a byte from the uart
-    fn read(&mut self) -> nb::Result<u8, Error> {
+    fn read(&mut self) -> nb::Result<u8, Self::Error> {
         read(&*self.usart)
     }
 }
 
-impl<USART> embedded_hal::serial::Write<u8> for Tx<USART>
+impl<USART> serial::ErrorType for Tx<USART> {
+    type Error = Error;
+}
+
+impl<USART> embedded_hal_nb::serial::Write<u8> for Tx<USART>
 where
     USART: Deref<Target = SerialRegisterBlock>,
 {
-    type Error = Infallible;
-
     /// Ensures that none of the previously written words are still buffered
     fn flush(&mut self) -> nb::Result<(), Self::Error> {
         flush(self.usart)
@@ -412,13 +479,11 @@ where
     }
 }
 
-impl<USART, TXPIN, RXPIN> embedded_hal::serial::Write<u8> for Serial<USART, TXPIN, RXPIN>
+impl<USART, TXPIN, RXPIN> embedded_hal_nb::serial::Write<u8> for Serial<USART, TXPIN, RXPIN>
 where
     USART: Deref<Target = SerialRegisterBlock>,
     TXPIN: TxPin<USART>,
 {
-    type Error = Infallible;
-
     /// Ensures that none of the previously written words are still buffered
     fn flush(&mut self) -> nb::Result<(), Self::Error> {
         flush(&*self.usart)
@@ -461,7 +526,7 @@ where
 
 impl<USART> Write for Tx<USART>
 where
-    Tx<USART>: embedded_hal::serial::Write<u8>,
+    Tx<USART>: embedded_hal_nb::serial::Write<u8>,
 {
     fn write_str(&mut self, s: &str) -> Result {
         s.as_bytes()
@@ -485,7 +550,7 @@ where
 }
 
 /// Ensures that none of the previously written words are still buffered
-fn flush(usart: *const SerialRegisterBlock) -> nb::Result<(), Infallible> {
+fn flush(usart: *const SerialRegisterBlock) -> nb::Result<(), Error> {
     // NOTE(unsafe) atomic read with no side effects
     let sr = unsafe { (*usart).sr.read() };
 
@@ -498,13 +563,13 @@ fn flush(usart: *const SerialRegisterBlock) -> nb::Result<(), Infallible> {
 
 /// Tries to write a byte to the UART
 /// Returns `Err(WouldBlock)` if the transmit buffer is full
-fn write(usart: *const SerialRegisterBlock, byte: u8) -> nb::Result<(), Infallible> {
+fn write(usart: *const SerialRegisterBlock, byte: u8) -> nb::Result<(), Error> {
     // NOTE(unsafe) atomic read with no side effects
     let sr = unsafe { (*usart).sr.read() };
 
     if sr.txe().bit_is_set() {
         // NOTE(unsafe) atomic write to stateless register
-        unsafe { (*usart).dr.write(|w| w.dr().bits(byte as u16)) }
+        unsafe { (*usart).dr8().write(|w| w.dr().bits(byte)) }
         Ok(())
     } else {
         Err(nb::Error::WouldBlock)
@@ -516,7 +581,7 @@ fn read(usart: *const SerialRegisterBlock) -> nb::Result<u8, Error> {
     // NOTE(unsafe) atomic read with no side effects
     let sr = unsafe { (*usart).sr.read() };
 
-    let dr = unsafe { (*usart).dr.read() };
+    let dr = unsafe { (*usart).dr8().read() };
 
     if sr.pe().bit_is_set() {
         Err(nb::Error::Other(Error::Parity))

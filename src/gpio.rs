@@ -87,7 +87,7 @@ pub struct Output<MODE> {
 /// Push pull output (type state)
 pub struct PushPull;
 
-use embedded_hal::digital::v2::{toggleable, InputPin, OutputPin, StatefulOutputPin};
+use embedded_hal::digital::{InputPin, OutputPin, StatefulOutputPin};
 
 /// Fully erased pin
 pub struct Pin<MODE> {
@@ -104,19 +104,21 @@ unsafe impl<MODE> Send for Pin<MODE> {}
 
 impl<MODE> StatefulOutputPin for Pin<Output<MODE>> {
     #[inline(always)]
-    fn is_set_high(&self) -> Result<bool, Self::Error> {
+    fn is_set_high(&mut self) -> Result<bool, Self::Error> {
         self.is_set_low().map(|v| !v)
     }
 
     #[inline(always)]
-    fn is_set_low(&self) -> Result<bool, Self::Error> {
+    fn is_set_low(&mut self) -> Result<bool, Self::Error> {
         Ok(unsafe { (*self.port).is_set_low(self.i) })
     }
 }
 
-impl<MODE> OutputPin for Pin<Output<MODE>> {
+impl<MODE> embedded_hal::digital::ErrorType for Pin<Output<MODE>> {
     type Error = Infallible;
+}
 
+impl<MODE> OutputPin for Pin<Output<MODE>> {
     #[inline(always)]
     fn set_high(&mut self) -> Result<(), Self::Error> {
         unsafe { (*self.port).set_high(self.i) };
@@ -130,32 +132,30 @@ impl<MODE> OutputPin for Pin<Output<MODE>> {
     }
 }
 
-impl<MODE> toggleable::Default for Pin<Output<MODE>> {}
-
 impl InputPin for Pin<Output<OpenDrain>> {
-    type Error = Infallible;
-
     #[inline(always)]
-    fn is_high(&self) -> Result<bool, Self::Error> {
+    fn is_high(&mut self) -> Result<bool, Self::Error> {
         self.is_low().map(|v| !v)
     }
 
     #[inline(always)]
-    fn is_low(&self) -> Result<bool, Self::Error> {
+    fn is_low(&mut self) -> Result<bool, Self::Error> {
         Ok(unsafe { (*self.port).is_low(self.i) })
     }
 }
 
-impl<MODE> InputPin for Pin<Input<MODE>> {
+impl<MODE> embedded_hal::digital::ErrorType for Pin<Input<MODE>> {
     type Error = Infallible;
+}
 
+impl<MODE> InputPin for Pin<Input<MODE>> {
     #[inline(always)]
-    fn is_high(&self) -> Result<bool, Self::Error> {
+    fn is_high(&mut self) -> Result<bool, Self::Error> {
         self.is_low().map(|v| !v)
     }
 
     #[inline(always)]
-    fn is_low(&self) -> Result<bool, Self::Error> {
+    fn is_low(&mut self) -> Result<bool, Self::Error> {
         Ok(unsafe { (*self.port).is_low(self.i) })
     }
 }
@@ -204,13 +204,11 @@ macro_rules! gpio {
                 use core::marker::PhantomData;
                 use core::convert::Infallible;
 
-                use embedded_hal::digital::v2::{InputPin, OutputPin, StatefulOutputPin, toggleable};
+                use embedded_hal::digital::{InputPin, OutputPin, StatefulOutputPin};
                 use crate::{
                     rcc::Rcc,
                     pac::$GPIOX
                 };
-
-                use cortex_m::interrupt::CriticalSection;
 
                 use super::{
                     Alternate, Analog, Floating, GpioExt, Input, OpenDrain, Output,
@@ -278,7 +276,7 @@ macro_rules! gpio {
                     impl<MODE> $PXi<MODE> {
                         /// Configures the pin to operate in AF0 mode
                         pub fn into_alternate_af0(
-                            self, _cs: &CriticalSection
+                            self,
                         ) -> $PXi<Alternate<AF0>> {
                             _set_alternate_mode($i, 0);
                             $PXi { _mode: PhantomData }
@@ -286,7 +284,7 @@ macro_rules! gpio {
 
                         /// Configures the pin to operate in AF1 mode
                         pub fn into_alternate_af1(
-                            self, _cs: &CriticalSection
+                            self,
                         ) -> $PXi<Alternate<AF1>> {
                             _set_alternate_mode($i, 1);
                             $PXi { _mode: PhantomData }
@@ -294,7 +292,7 @@ macro_rules! gpio {
 
                         /// Configures the pin to operate in AF2 mode
                         pub fn into_alternate_af2(
-                            self, _cs: &CriticalSection
+                            self,
                         ) -> $PXi<Alternate<AF2>> {
                             _set_alternate_mode($i, 2);
                             $PXi { _mode: PhantomData }
@@ -302,7 +300,7 @@ macro_rules! gpio {
 
                         /// Configures the pin to operate in AF3 mode
                         pub fn into_alternate_af3(
-                            self, _cs: &CriticalSection
+                            self,
                         ) -> $PXi<Alternate<AF3>> {
                             _set_alternate_mode($i, 3);
                             $PXi { _mode: PhantomData }
@@ -310,7 +308,7 @@ macro_rules! gpio {
 
                         /// Configures the pin to operate in AF4 mode
                         pub fn into_alternate_af4(
-                            self, _cs: &CriticalSection
+                            self,
                         ) -> $PXi<Alternate<AF4>> {
                             _set_alternate_mode($i, 4);
                             $PXi { _mode: PhantomData }
@@ -318,7 +316,7 @@ macro_rules! gpio {
 
                         /// Configures the pin to operate in AF5 mode
                         pub fn into_alternate_af5(
-                            self, _cs: &CriticalSection
+                            self,
                         ) -> $PXi<Alternate<AF5>> {
                             _set_alternate_mode($i, 5);
                             $PXi { _mode: PhantomData }
@@ -326,7 +324,7 @@ macro_rules! gpio {
 
                         /// Configures the pin to operate in AF6 mode
                         pub fn into_alternate_af6(
-                            self, _cs: &CriticalSection
+                            self,
                         ) -> $PXi<Alternate<AF6>> {
                             _set_alternate_mode($i, 6);
                             $PXi { _mode: PhantomData }
@@ -334,7 +332,7 @@ macro_rules! gpio {
 
                         /// Configures the pin to operate in AF7 mode
                         pub fn into_alternate_af7(
-                            self, _cs: &CriticalSection
+                            self,
                         ) -> $PXi<Alternate<AF7>> {
                             _set_alternate_mode($i, 7);
                             $PXi { _mode: PhantomData }
@@ -342,7 +340,7 @@ macro_rules! gpio {
 
                         /// Configures the pin to operate in AF8 mode
                         pub fn into_alternate_af8(
-                            self, _cs: &CriticalSection
+                            self,
                         ) -> $PXi<Alternate<AF8>> {
                             _set_alternate_mode($i, 8);
                             $PXi { _mode: PhantomData }
@@ -350,7 +348,7 @@ macro_rules! gpio {
 
                         /// Configures the pin to operate in AF9 mode
                         pub fn into_alternate_af9(
-                            self, _cs: &CriticalSection
+                            self,
                         ) -> $PXi<Alternate<AF9>> {
                             _set_alternate_mode($i, 9);
                             $PXi { _mode: PhantomData }
@@ -358,7 +356,7 @@ macro_rules! gpio {
 
                         /// Configures the pin to operate in AF10 mode
                         pub fn into_alternate_af10(
-                            self, _cs: &CriticalSection
+                            self,
                         ) -> $PXi<Alternate<AF10>> {
                             _set_alternate_mode($i, 10);
                             $PXi { _mode: PhantomData }
@@ -366,7 +364,7 @@ macro_rules! gpio {
 
                         /// Configures the pin to operate in AF11 mode
                         pub fn into_alternate_af11(
-                            self, _cs: &CriticalSection
+                            self,
                         ) -> $PXi<Alternate<AF11>> {
                             _set_alternate_mode($i, 11);
                             $PXi { _mode: PhantomData }
@@ -374,7 +372,7 @@ macro_rules! gpio {
 
                         /// Configures the pin to operate in AF12 mode
                         pub fn into_alternate_af12(
-                            self, _cs: &CriticalSection
+                            self,
                         ) -> $PXi<Alternate<AF12>> {
                             _set_alternate_mode($i, 12);
                             $PXi { _mode: PhantomData }
@@ -382,7 +380,7 @@ macro_rules! gpio {
 
                         /// Configures the pin to operate in AF13 mode
                         pub fn into_alternate_af13(
-                            self, _cs: &CriticalSection
+                            self,
                         ) -> $PXi<Alternate<AF13>> {
                             _set_alternate_mode($i, 13);
                             $PXi { _mode: PhantomData }
@@ -390,7 +388,7 @@ macro_rules! gpio {
 
                         /// Configures the pin to operate in AF14 mode
                         pub fn into_alternate_af14(
-                            self, _cs: &CriticalSection
+                            self,
                         ) -> $PXi<Alternate<AF14>> {
                             _set_alternate_mode($i, 14);
                             $PXi { _mode: PhantomData }
@@ -398,7 +396,7 @@ macro_rules! gpio {
 
                         /// Configures the pin to operate in AF15 mode
                         pub fn into_alternate_af15(
-                            self, _cs: &CriticalSection
+                            self,
                         ) -> $PXi<Alternate<AF15>> {
                             _set_alternate_mode($i, 15);
                             $PXi { _mode: PhantomData }
@@ -406,7 +404,7 @@ macro_rules! gpio {
 
                         /// Configures the pin to operate as a floating input pin
                         pub fn into_floating_input(
-                            self, _cs: &CriticalSection
+                            self,
                         ) -> $PXi<Input<Floating>> {
                             let offset = 2 * $i;
                             unsafe {
@@ -423,7 +421,7 @@ macro_rules! gpio {
 
                         /// Configures the pin to operate as a pulled down input pin
                         pub fn into_pull_down_input(
-                            self, _cs: &CriticalSection
+                            self,
                             ) -> $PXi<Input<PullDown>> {
                             let offset = 2 * $i;
                             unsafe {
@@ -440,7 +438,7 @@ macro_rules! gpio {
 
                         /// Configures the pin to operate as a pulled up input pin
                         pub fn into_pull_up_input(
-                            self, _cs: &CriticalSection
+                            self,
                         ) -> $PXi<Input<PullUp>> {
                             let offset = 2 * $i;
                             unsafe {
@@ -457,7 +455,7 @@ macro_rules! gpio {
 
                         /// Configures the pin to operate as an analog pin
                         pub fn into_analog(
-                            self, _cs: &CriticalSection
+                            self,
                         ) -> $PXi<Analog> {
                             let offset = 2 * $i;
                             unsafe {
@@ -474,7 +472,7 @@ macro_rules! gpio {
 
                         /// Configures the pin to operate as an open drain output pin
                         pub fn into_open_drain_output(
-                            self, _cs: &CriticalSection
+                            self,
                         ) -> $PXi<Output<OpenDrain>> {
                             let offset = 2 * $i;
                             unsafe {
@@ -494,7 +492,7 @@ macro_rules! gpio {
 
                         /// Configures the pin to operate as an push pull output pin
                         pub fn into_push_pull_output(
-                            self, _cs: &CriticalSection
+                            self,
                         ) -> $PXi<Output<PushPull>> {
                             let offset = 2 * $i;
                             unsafe {
@@ -515,7 +513,7 @@ macro_rules! gpio {
                         /// Configures the pin to operate as an push pull output pin with quick fall
                         /// and rise times
                         pub fn into_push_pull_output_hs(
-                            self, _cs: &CriticalSection
+                            self,
                         ) -> $PXi<Output<PushPull>> {
                             let offset = 2 * $i;
                             unsafe {
@@ -539,7 +537,7 @@ macro_rules! gpio {
 
                     impl $PXi<Output<OpenDrain>> {
                         /// Enables / disables the internal pull up
-                        pub fn internal_pull_up(&mut self, _cs: &CriticalSection, on: bool) {
+                        pub fn internal_pull_up(&mut self, on: bool) {
                             let offset = 2 * $i;
                             let value = if on { 0b01 } else { 0b00 };
                             unsafe {
@@ -553,7 +551,7 @@ macro_rules! gpio {
 
                     impl<AF> $PXi<Alternate<AF>> {
                         /// Enables / disables the internal pull up
-                        pub fn internal_pull_up(self, _cs: &CriticalSection, on: bool) -> Self {
+                        pub fn internal_pull_up(self, on: bool) -> Self {
                             let offset = 2 * $i;
                             let value = if on { 0b01 } else { 0b00 };
                             unsafe {
@@ -568,7 +566,7 @@ macro_rules! gpio {
 
                     impl<AF> $PXi<Alternate<AF>> {
                         /// Turns pin alternate configuration pin into open drain
-                        pub fn set_open_drain(self, _cs: &CriticalSection) -> Self {
+                        pub fn set_open_drain(self) -> Self {
                             let offset = $i;
                             unsafe {
                                 let reg = &(*$GPIOX::ptr());
@@ -594,19 +592,21 @@ macro_rules! gpio {
                         }
                     }
 
+                    impl<MODE> embedded_hal::digital::ErrorType for $PXi<Output<MODE>> {
+                        type Error = Infallible;
+                    }
+
                     impl<MODE> StatefulOutputPin for $PXi<Output<MODE>> {
-                        fn is_set_high(&self) -> Result<bool, Self::Error> {
+                        fn is_set_high(&mut self) -> Result<bool, Self::Error> {
                             self.is_set_low().map(|v| !v)
                         }
 
-                        fn is_set_low(&self) -> Result<bool, Self::Error> {
+                        fn is_set_low(&mut self) -> Result<bool, Self::Error> {
                             Ok(unsafe { (*$GPIOX::ptr()).is_set_low($i) })
                         }
                     }
 
                     impl<MODE> OutputPin for $PXi<Output<MODE>> {
-                        type Error = Infallible;
-
                         fn set_high(&mut self) -> Result<(), Self::Error> {
                             Ok(unsafe { (*$GPIOX::ptr()).set_high($i) })
                         }
@@ -616,16 +616,12 @@ macro_rules! gpio {
                         }
                     }
 
-                    impl<MODE> toggleable::Default for $PXi<Output<MODE>> {}
-
                     impl InputPin for $PXi<Output<OpenDrain>> {
-                        type Error = Infallible;
-
-                        fn is_high(&self) -> Result<bool, Self::Error> {
+                        fn is_high(&mut self) -> Result<bool, Self::Error> {
                             self.is_low().map(|v| !v)
                         }
 
-                        fn is_low(&self) -> Result<bool, Self::Error> {
+                        fn is_low(&mut self) -> Result<bool, Self::Error> {
                             Ok(unsafe { (*$GPIOX::ptr()).is_low($i) })
                         }
                     }
@@ -644,14 +640,16 @@ macro_rules! gpio {
                         }
                     }
 
-                    impl<MODE> InputPin for $PXi<Input<MODE>> {
+                    impl<MODE> embedded_hal::digital::ErrorType for $PXi<Input<MODE>> {
                         type Error = Infallible;
+                    }
 
-                        fn is_high(&self) -> Result<bool, Self::Error> {
+                    impl<MODE> InputPin for $PXi<Input<MODE>> {
+                        fn is_high(&mut self) -> Result<bool, Self::Error> {
                             self.is_low().map(|v| !v)
                         }
 
-                        fn is_low(&self) -> Result<bool, Self::Error> {
+                        fn is_low(&mut self) -> Result<bool, Self::Error> {
                             Ok(unsafe { (*$GPIOX::ptr()).is_low($i) })
                         }
                     }
