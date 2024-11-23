@@ -79,6 +79,71 @@ impl core::convert::From<DataSize> for u8 {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PeriphMap {
+    Adc,
+    Spi1Tx,
+    Spi1Rx,
+    Spi2Tx,
+    Spi2Rx,
+    Usart1Tx,
+    Usart1Rx,
+    Usart2Tx,
+    Usart2Rx,
+    I2cTx,
+    I2cRx,
+    Tim1Ch1,
+    Tim1Ch2,
+    Tim1Ch3,
+    Tim1Ch4,
+    Tim1Com,
+    Tim1Up,
+    Tim1Trig,
+    Tim3Ch1,
+    Tim3Ch3,
+    Tim3Ch4,
+    Tim3Trig,
+    Tim3Up,
+    Tim16Ch1,
+    Tim16Up,
+    Tim17Ch1,
+    Tim17Up,
+}
+
+impl core::convert::From<PeriphMap> for u32 {
+    fn from(val: PeriphMap) -> u32 {
+        match val {
+            PeriphMap::Adc => 0,
+            PeriphMap::Spi1Tx => 1,
+            PeriphMap::Spi1Rx => 2,
+            PeriphMap::Spi2Tx => 3,
+            PeriphMap::Spi2Rx => 4,
+            PeriphMap::Usart1Tx => 5,
+            PeriphMap::Usart1Rx => 6,
+            PeriphMap::Usart2Tx => 7,
+            PeriphMap::Usart2Rx => 8,
+            PeriphMap::I2cTx => 9,
+            PeriphMap::I2cRx => 10,
+            PeriphMap::Tim1Ch1 => 11,
+            PeriphMap::Tim1Ch2 => 12,
+            PeriphMap::Tim1Ch3 => 13,
+            PeriphMap::Tim1Ch4 => 14,
+            PeriphMap::Tim1Com => 15,
+            PeriphMap::Tim1Up => 16,
+            PeriphMap::Tim1Trig => 17,
+            PeriphMap::Tim3Ch1 => 18,
+            PeriphMap::Tim3Ch3 => 19,
+            PeriphMap::Tim3Ch4 => 20,
+            PeriphMap::Tim3Trig => 21,
+            PeriphMap::Tim3Up => 22,
+            PeriphMap::Tim16Ch1 => 24,
+            PeriphMap::Tim16Up => 25,
+            PeriphMap::Tim17Ch1 => 26,
+            PeriphMap::Tim17Up => 27,
+        }
+    }
+}
+
 pub struct CircBuffer<BUFFER, PAYLOAD>
 where
     BUFFER: 'static,
@@ -173,6 +238,18 @@ pub struct W;
 pub struct Ch<DMA, const C: u8>(PhantomData<DMA>);
 
 impl<DMA: DmaExt, const C: u8> Ch<DMA, C> {
+    /// Set the Dma request `map` to the specified peripheral
+    pub fn set_map(&mut self, map: PeriphMap) {
+        unsafe {
+            (*pac::SYSCFG::ptr()).cfgr3.modify(|r, w| {
+                w.bits(
+                    (r.bits() & !(0x1f << ((C - 1) * 8)))
+                        | (Into::<u32>::into(map) << ((C - 1) * 8)),
+                )
+            });
+        }
+    }
+
     /// Associated peripheral `address`
     ///
     /// `inc` indicates whether the address will be incremented after every byte transfer
@@ -204,12 +281,19 @@ impl<DMA: DmaExt, const C: u8> Ch<DMA, C> {
 
     /// Starts the DMA transfer
     pub fn start(&mut self) {
+        // TODO: clear all the flags for a channel. There is no
+        // channel way of clearing the flags yet, so manipulate
+        // the bits directly, not ideal
+        // need an indexing method in the pac
+        self.ifcr()
+            .write(|w| unsafe { w.bits(0xF << ((C - 1) * 4)) });
         self.ch().cr.modify(|_, w| w.en().set_bit());
     }
 
     /// Stops the DMA transfer
     pub fn stop(&mut self) {
-        self.ifcr().write(|w| unsafe { w.cgif::<C>().clear() });
+        // TODO: do bit ops to get cgif flag cleared, until pac has indexing method
+        self.ifcr().write(|w| unsafe { w.bits(1 << ((C - 1) * 4)) });
         self.ch().cr.modify(|_, w| w.en().clear_bit());
     }
 
@@ -233,7 +317,7 @@ impl<DMA: DmaExt, const C: u8> Ch<DMA, C> {
     }
 
     pub fn ch(&mut self) -> &pac::dma::CH {
-        unsafe { &(*DMA::ptr()).ch[C as usize] }
+        unsafe { &(*DMA::ptr()).ch[C as usize - 1] }
     }
 
     pub fn isr(&self) -> pac::dma::isr::R {
@@ -247,7 +331,7 @@ impl<DMA: DmaExt, const C: u8> Ch<DMA, C> {
 
     pub fn get_ndtr(&self) -> u32 {
         // NOTE(unsafe) atomic read with no side effects
-        unsafe { (*DMA::ptr()).ch[C as usize].ndtr.read().bits() }
+        unsafe { (*DMA::ptr()).ch[C as usize - 1].ndtr.read().bits() }
     }
 }
 
@@ -301,7 +385,8 @@ where
                     self.payload
                         .channel
                         .ifcr()
-                        .write(|w| unsafe { w.ctcif::<C>().set_bit() });
+                        // TODO: do bit ops to get ctif flag cleared, until pac has indexing method
+                        .write(|w| unsafe { w.bits(1 << (((C - 1) * 4) + 1)) });
 
                     self.readable_half = Half::Second;
                     Half::Second
@@ -314,7 +399,8 @@ where
                     self.payload
                         .channel
                         .ifcr()
-                        .write(|w| unsafe { w.chtif::<C>().set_bit() });
+                        // TODO: do bit ops to get htif flag cleared, until pac has indexing method
+                        .write(|w| unsafe { w.bits(1 << (((C - 1) * 4) + 2)) });
 
                     self.readable_half = Half::First;
                     Half::First
@@ -415,16 +501,16 @@ where
     }
 }
 
-impl<BUFFER, PAYLOAD, MODE, DMA: DmaExt, const C: u8, TXC>
-    Transfer<MODE, BUFFER, RxTxDma<PAYLOAD, Ch<DMA, C>, TXC>>
+impl<BUFFER, PAYLOAD, MODE, DMA: DmaExt, const RXC: u8, const TXC: u8>
+    Transfer<MODE, BUFFER, RxTxDma<PAYLOAD, Ch<DMA, RXC>, Ch<DMA, TXC>>>
 where
-    RxTxDma<PAYLOAD, Ch<DMA, C>, TXC>: TransferPayload,
+    RxTxDma<PAYLOAD, Ch<DMA, RXC>, Ch<DMA, TXC>>: TransferPayload,
 {
     pub fn is_done(&self) -> bool {
         !self.payload.rxchannel.in_progress()
     }
 
-    pub fn wait(mut self) -> (BUFFER, RxTxDma<PAYLOAD, Ch<DMA, C>, TXC>) {
+    pub fn wait(mut self) -> (BUFFER, RxTxDma<PAYLOAD, Ch<DMA, RXC>, Ch<DMA, TXC>>) {
         while !self.is_done() {}
 
         atomic::compiler_fence(Ordering::Acquire);
@@ -473,10 +559,10 @@ where
     }
 }
 
-impl<RXBUFFER, TXBUFFER, PAYLOAD, DMA: DmaExt, const C: u8, TXC>
-    Transfer<W, (RXBUFFER, TXBUFFER), RxTxDma<PAYLOAD, Ch<DMA, C>, TXC>>
+impl<RXBUFFER, TXBUFFER, PAYLOAD, DMA: DmaExt, const RXC: u8, const TXC: u8>
+    Transfer<W, (RXBUFFER, TXBUFFER), RxTxDma<PAYLOAD, Ch<DMA, RXC>, Ch<DMA, TXC>>>
 where
-    RxTxDma<PAYLOAD, Ch<DMA, C>, TXC>: TransferPayload,
+    RxTxDma<PAYLOAD, Ch<DMA, RXC>, Ch<DMA, TXC>>: TransferPayload,
 {
     pub fn peek<T>(&self) -> &[T]
     where
@@ -517,7 +603,7 @@ macro_rules! dma {
 
                     // reset the DMA control registers (stops all on-going transfers)
                     $(
-                        self.ch[$ch].cr.reset();
+                        self.ch[$ch - 1].cr.reset();
                     )+
 
                     Channels((), $(super::Ch::<$DMAX, $ch>(super::PhantomData)),+)
@@ -534,9 +620,9 @@ macro_rules! dma {
 #[cfg(any(feature = "py32f003", feature = "py32f030"))]
 dma! {
     DMA: (dma1, {
-        C1: (0),
-        C2: (1),
-        C3: (2),
+        C1: (1),
+        C2: (2),
+        C3: (3),
     }),
 }
 

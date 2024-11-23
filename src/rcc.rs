@@ -1,11 +1,14 @@
+use crate::pac::rcc;
 use crate::pac::rcc::{
     cfgr::{MCOPRE_A, MCOSEL_A},
     cr::HSIDIV_A,
     icscr::HSI_FS_A,
 };
 
-use crate::pac::RCC;
+use crate::pac::{PWR, RCC};
 use crate::time::Hertz;
+
+mod enable;
 
 /// Extension trait that sets up the `RCC` peripheral
 pub trait RccExt {
@@ -36,6 +39,22 @@ impl Rcc {
         self.regs
             .cfgr
             .modify(|_, w| w.mcopre().variant(pre.into()).mcosel().variant(sel.into()));
+    }
+}
+
+/// AMBA High-performance Bus (AHB) registers
+#[non_exhaustive]
+pub struct AHB;
+
+/// Advanced Peripheral Bus (APB) registers
+#[non_exhaustive]
+pub struct APB;
+
+impl APB {
+    /// Set power interface clock (PWREN) bit in RCC_APB1ENR
+    pub fn set_pwren() {
+        let rcc = unsafe { &*RCC::ptr() };
+        PWR::enable(rcc);
     }
 }
 
@@ -301,6 +320,109 @@ mod inner {
     }
 }
 
+/// Frequency on bus that peripheral is connected in
+pub trait BusClock {
+    /// Calculates frequency depending on `Clock` state
+    fn clock(clocks: &Clocks) -> Hertz;
+}
+
+/// Frequency on bus that timer is connected in
+pub trait BusTimerClock {
+    /// Calculates base frequency of timer depending on `Clock` state
+    fn timer_clock(clocks: &Clocks) -> Hertz;
+}
+
+impl<T> BusClock for T
+where
+    T: RccBus,
+    T::Bus: BusClock,
+{
+    fn clock(clocks: &Clocks) -> Hertz {
+        T::Bus::clock(clocks)
+    }
+}
+
+impl<T> BusTimerClock for T
+where
+    T: RccBus,
+    T::Bus: BusTimerClock,
+{
+    fn timer_clock(clocks: &Clocks) -> Hertz {
+        T::Bus::timer_clock(clocks)
+    }
+}
+
+impl BusClock for AHB {
+    fn clock(clocks: &Clocks) -> Hertz {
+        clocks.hclk
+    }
+}
+
+impl BusClock for APB {
+    fn clock(clocks: &Clocks) -> Hertz {
+        clocks.pclk
+    }
+}
+
+impl BusTimerClock for APB {
+    fn timer_clock(clocks: &Clocks) -> Hertz {
+        clocks.pclk_tim()
+    }
+}
+
+/// Bus associated to peripheral
+pub trait RccBus: crate::Sealed {
+    /// Bus type;
+    type Bus;
+}
+
+/// Enable/disable peripheral
+pub trait Enable: RccBus {
+    fn enable(rcc: &rcc::RegisterBlock);
+    fn disable(rcc: &rcc::RegisterBlock);
+}
+/// Reset peripheral
+pub trait Reset: RccBus {
+    fn reset(rcc: &rcc::RegisterBlock);
+}
+
+/// Frozen clock frequencies
+///
+/// The existence of this value indicates that the clock configuration can no longer be changed
+#[derive(Clone, Copy)]
+pub struct Clocks {
+    hclk: Hertz,
+    pclk: Hertz,
+    sysclk: Hertz,
+    ppre: u8,
+}
+
+impl Clocks {
+    /// Returns the frequency of the AHB
+    pub const fn hclk(&self) -> Hertz {
+        self.hclk
+    }
+
+    /// Returns the system (core) frequency
+    pub const fn sysclk(&self) -> Hertz {
+        self.sysclk
+    }
+
+    /// Returns the frequency of the APB
+    pub const fn pclk(&self) -> Hertz {
+        self.pclk
+    }
+
+    /// Returns the frequency of the APB Timers
+    pub const fn pclk_tim(&self) -> Hertz {
+        Hertz(self.pclk.0 * if self.ppre() == 1 { 1 } else { 2 })
+    }
+
+    pub(crate) const fn ppre(&self) -> u8 {
+        self.ppre
+    }
+}
+
 use self::inner::SysClkSource;
 
 pub struct CFGR {
@@ -463,35 +585,9 @@ impl CFGR {
                 hclk: Hertz(hclk),
                 pclk: Hertz(pclk),
                 sysclk: Hertz(sysclk),
+                ppre,
             },
             regs: self.rcc,
         }
-    }
-}
-
-/// Frozen clock frequencies
-///
-/// The existence of this value indicates that the clock configuration can no longer be changed
-#[derive(Clone, Copy)]
-pub struct Clocks {
-    hclk: Hertz,
-    pclk: Hertz,
-    sysclk: Hertz,
-}
-
-impl Clocks {
-    /// Returns the frequency of the AHB
-    pub fn hclk(&self) -> Hertz {
-        self.hclk
-    }
-
-    /// Returns the frequency of the APB
-    pub fn pclk(&self) -> Hertz {
-        self.pclk
-    }
-
-    /// Returns the system (core) frequency
-    pub fn sysclk(&self) -> Hertz {
-        self.sysclk
     }
 }

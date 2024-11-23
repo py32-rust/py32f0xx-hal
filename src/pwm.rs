@@ -4,7 +4,7 @@ use core::{marker::PhantomData, mem::MaybeUninit};
 use crate::rcc::Rcc;
 
 use crate::time::Hertz;
-use embedded_hal as hal;
+use embedded_hal_02 as hal;
 
 pub trait Pins<TIM, P> {
     const C1: bool = false;
@@ -715,7 +715,7 @@ macro_rules! pwm_1_channel {
                 rcc.regs.$apbrstr.modify(|_, w| w.$timXrst().clear_bit());
 
                 if PINS::C1 {
-                    tim.ccmr1_output().modify(|_, w| unsafe { w.oc1pe().set_bit().oc1m().bits(6) });
+                    tim.ccmr1_output().modify(|_, w| w.oc1pe().set_bit().oc1m().bits(6));
                 }
 
                 // If pclk is prescaled from hclk, the frequency fed into the timers is doubled

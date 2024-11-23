@@ -1,6 +1,6 @@
 use core::ops::Deref;
 
-use embedded_hal::blocking::i2c::{Read, Write, WriteRead};
+use embedded_hal_02::blocking::i2c::{Read, Write, WriteRead};
 
 use crate::{
     gpio::*,

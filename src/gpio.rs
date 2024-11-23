@@ -1,9 +1,20 @@
 //! General Purpose Input / Output
 
-use core::convert::Infallible;
 use core::marker::PhantomData;
 
-use crate::rcc::Rcc;
+use crate::pac;
+
+mod hal_1;
+
+pub trait PinExt {
+    type Mode;
+
+    /// Return pin number
+    fn pin_id(&self) -> u8;
+
+    /// Return port
+    fn port_id(&self) -> u8;
+}
 
 /// Extension trait to split a GPIO peripheral in independent pins and registers
 pub trait GpioExt {
@@ -11,7 +22,15 @@ pub trait GpioExt {
     type Parts;
 
     /// Splits the GPIO block into independent pins and registers
-    fn split(self, rcc: &mut Rcc) -> Self::Parts;
+    ///
+    /// This resets the state of the GPIO block
+    fn split(self) -> Self::Parts;
+
+    /// Splits the GPIO block into independent pins and registers without resetting its state
+    ///
+    /// # Safety
+    /// Make sure that all pins modes are set in reset state.
+    unsafe fn split_without_reset(self) -> Self::Parts;
 }
 
 trait GpioRegExt {
@@ -19,6 +38,130 @@ trait GpioRegExt {
     fn is_set_low(&self, pos: u8) -> bool;
     fn set_high(&self, pos: u8);
     fn set_low(&self, pos: u8);
+}
+
+// Using SCREAMING_SNAKE_CASE to be consistent with other HALs
+// see 59b2740 and #125 for motivation
+#[allow(non_camel_case_types)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum Edge {
+    Rising,
+    Falling,
+    RisingFalling,
+}
+
+mod sealed {
+    /// Marker trait that show if `ExtiPin` can be implemented
+    pub trait Interruptable {}
+}
+
+use sealed::Interruptable;
+
+impl<MODE> Interruptable for Input<MODE> {}
+
+/// External Interrupt Pin
+pub trait ExtiPin {
+    fn make_interrupt_source(&mut self, exti: &mut pac::EXTI);
+    fn trigger_on_edge(&mut self, exti: &mut pac::EXTI, level: Edge);
+    fn enable_interrupt(&mut self, exti: &mut pac::EXTI);
+    fn disable_interrupt(&mut self, exti: &mut pac::EXTI);
+    fn clear_interrupt_pending_bit(&mut self);
+    fn check_interrupt(&self) -> bool;
+}
+
+impl<PIN> ExtiPin for PIN
+where
+    PIN: PinExt,
+    PIN::Mode: Interruptable,
+{
+    /// Make corresponding EXTI line sensitive to this pin
+    fn make_interrupt_source(&mut self, exti: &mut pac::EXTI) {
+        let pin_number = self.pin_id();
+        let offset = 8 * (pin_number % 4);
+        let port = match self.port_id() {
+            b'A' => 0,
+            b'B' => 1,
+            b'C' | b'F' => 2,
+            _ => unreachable!(),
+        };
+        match pin_number {
+            // for pins 0-3, mux selects ports a=0, b=1, or f=2
+            // for py32f002b, a=0, b=1, c=2
+            0..=3 => {
+                exti.exticr1.modify(|r, w| unsafe {
+                    w.bits((r.bits() & !(0xf << offset)) | (port << offset))
+                });
+            }
+            // pin 4 is same as pins 0-3
+            4 => {
+                exti.exticr2.modify(|r, w| unsafe {
+                    w.bits((r.bits() & !(0xf << offset)) | (port << offset))
+                });
+            }
+            // pins 5-7, mux selects ports a=0, b=1
+            5..=7 => {
+                exti.exticr2
+                    .modify(|r, w| unsafe { w.bits(r.bits() | (port << offset)) });
+            }
+            // BUGBUG: py32f002a only has 8 pins? pin 8, mux selects ports a=0, b=1
+            #[cfg(any(feature = "py32f030", feature = "py32f003", feature = "py32f002a"))]
+            8 => {
+                exti.exticr3
+                    .modify(|r, w| unsafe { w.bits(r.bits() | (port << offset)) });
+            }
+            // BUGBUG: py32f002a only has 8 pins? pin 9-15, no mux
+            #[cfg(any(feature = "py32f030", feature = "py32f003", feature = "py32f002a"))]
+            9..=15 => {}
+            _ => unreachable!(),
+        }
+    }
+
+    /// Generate interrupt on rising edge, falling edge or both
+    fn trigger_on_edge(&mut self, exti: &mut pac::EXTI, edge: Edge) {
+        let pin_number = self.pin_id();
+        match edge {
+            Edge::Rising => {
+                exti.rtsr
+                    .modify(|r, w| unsafe { w.bits(r.bits() | (1 << pin_number)) });
+                exti.ftsr
+                    .modify(|r, w| unsafe { w.bits(r.bits() & !(1 << pin_number)) });
+            }
+            Edge::Falling => {
+                exti.rtsr
+                    .modify(|r, w| unsafe { w.bits(r.bits() & !(1 << pin_number)) });
+                exti.ftsr
+                    .modify(|r, w| unsafe { w.bits(r.bits() | (1 << pin_number)) });
+            }
+            Edge::RisingFalling => {
+                exti.rtsr
+                    .modify(|r, w| unsafe { w.bits(r.bits() | (1 << pin_number)) });
+                exti.ftsr
+                    .modify(|r, w| unsafe { w.bits(r.bits() | (1 << pin_number)) });
+            }
+        }
+    }
+
+    /// Enable external interrupts from this pin.
+    fn enable_interrupt(&mut self, exti: &mut pac::EXTI) {
+        exti.imr
+            .modify(|r, w| unsafe { w.bits(r.bits() | (1 << self.pin_id())) });
+    }
+
+    /// Disable external interrupts from this pin
+    fn disable_interrupt(&mut self, exti: &mut pac::EXTI) {
+        exti.imr
+            .modify(|r, w| unsafe { w.bits(r.bits() & !(1 << self.pin_id())) });
+    }
+
+    /// Clear the interrupt pending bit for this pin
+    fn clear_interrupt_pending_bit(&mut self) {
+        unsafe { (*pac::EXTI::ptr()).pr.write(|w| w.bits(1 << self.pin_id())) };
+    }
+
+    /// Reads the interrupt pending bit for this pin
+    fn check_interrupt(&self) -> bool {
+        unsafe { ((*pac::EXTI::ptr()).pr.read().bits() & (1 << self.pin_id())) != 0 }
+    }
 }
 
 /// Alternate function 0
@@ -87,11 +230,10 @@ pub struct Output<MODE> {
 /// Push pull output (type state)
 pub struct PushPull;
 
-use embedded_hal::digital::{InputPin, OutputPin, StatefulOutputPin};
-
 /// Fully erased pin
 pub struct Pin<MODE> {
     i: u8,
+    p: u8,
     port: *const dyn GpioRegExt,
     _mode: PhantomData<MODE>,
 }
@@ -102,61 +244,15 @@ unsafe impl<MODE> Sync for Pin<MODE> {}
 // threads
 unsafe impl<MODE> Send for Pin<MODE> {}
 
-impl<MODE> StatefulOutputPin for Pin<Output<MODE>> {
-    #[inline(always)]
-    fn is_set_high(&mut self) -> Result<bool, Self::Error> {
-        self.is_set_low().map(|v| !v)
+impl<MODE> PinExt for Pin<MODE> {
+    type Mode = MODE;
+
+    fn pin_id(&self) -> u8 {
+        self.i
     }
 
-    #[inline(always)]
-    fn is_set_low(&mut self) -> Result<bool, Self::Error> {
-        Ok(unsafe { (*self.port).is_set_low(self.i) })
-    }
-}
-
-impl<MODE> embedded_hal::digital::ErrorType for Pin<Output<MODE>> {
-    type Error = Infallible;
-}
-
-impl<MODE> OutputPin for Pin<Output<MODE>> {
-    #[inline(always)]
-    fn set_high(&mut self) -> Result<(), Self::Error> {
-        unsafe { (*self.port).set_high(self.i) };
-        Ok(())
-    }
-
-    #[inline(always)]
-    fn set_low(&mut self) -> Result<(), Self::Error> {
-        unsafe { (*self.port).set_low(self.i) }
-        Ok(())
-    }
-}
-
-impl InputPin for Pin<Output<OpenDrain>> {
-    #[inline(always)]
-    fn is_high(&mut self) -> Result<bool, Self::Error> {
-        self.is_low().map(|v| !v)
-    }
-
-    #[inline(always)]
-    fn is_low(&mut self) -> Result<bool, Self::Error> {
-        Ok(unsafe { (*self.port).is_low(self.i) })
-    }
-}
-
-impl<MODE> embedded_hal::digital::ErrorType for Pin<Input<MODE>> {
-    type Error = Infallible;
-}
-
-impl<MODE> InputPin for Pin<Input<MODE>> {
-    #[inline(always)]
-    fn is_high(&mut self) -> Result<bool, Self::Error> {
-        self.is_low().map(|v| !v)
-    }
-
-    #[inline(always)]
-    fn is_low(&mut self) -> Result<bool, Self::Error> {
-        Ok(unsafe { (*self.port).is_low(self.i) })
+    fn port_id(&self) -> u8 {
+        self.p
     }
 }
 
@@ -194,7 +290,7 @@ gpio_trait!(gpiof);
 gpio_trait!(gpioc);
 
 macro_rules! gpio {
-    ([$($GPIOX:ident, $gpiox:ident, $gpioxenr:ident, $PXx:ident, $gate:meta => [
+    ([$($GPIOX:ident, $gpiox:ident, $gpioxenr:ident, $PXx:ident, $PCH:literal, $gate:meta => [
         $($PXi:ident: ($pxi:ident, $i:expr, $MODE:ty),)+
     ]),+]) => {
         $(
@@ -202,11 +298,10 @@ macro_rules! gpio {
              #[cfg($gate)]
             pub mod $gpiox {
                 use core::marker::PhantomData;
-                use core::convert::Infallible;
 
-                use embedded_hal::digital::{InputPin, OutputPin, StatefulOutputPin};
                 use crate::{
-                    rcc::Rcc,
+                    rcc::{Enable, Reset},
+                    pac::RCC,
                     pac::$GPIOX
                 };
 
@@ -227,8 +322,21 @@ macro_rules! gpio {
                 impl GpioExt for $GPIOX {
                     type Parts = Parts;
 
-                    fn split(self, rcc: &mut Rcc) -> Parts {
-                        rcc.regs.iopenr.modify(|_, w| w.$gpioxenr().set_bit());
+                    fn split(self) -> Parts {
+                        let rcc = unsafe { &(*RCC::ptr()) };
+                        $GPIOX::enable(rcc);
+                        $GPIOX::reset(rcc);
+
+                        Parts {
+                            $(
+                                $pxi: $PXi { _mode: PhantomData },
+                            )+
+                        }
+                    }
+
+                    unsafe fn split_without_reset(self) -> Parts {
+                        let rcc = unsafe { &(*RCC::ptr()) };
+                        $GPIOX::enable(rcc);
 
                         Parts {
                             $(
@@ -579,6 +687,30 @@ macro_rules! gpio {
                     }
 
                     impl<MODE> $PXi<Output<MODE>> {
+                        pub fn is_set_high(&mut self) -> bool {
+                            !self.is_set_low()
+                        }
+
+                        pub fn is_set_low(&mut self) -> bool {
+                            unsafe { (*$GPIOX::ptr()).is_set_low($i) }
+                        }
+
+                        pub fn set_high(&mut self) {
+                            unsafe { (*$GPIOX::ptr()).set_high($i) };
+                        }
+
+                        fn set_low(&mut self) {
+                            unsafe { (*$GPIOX::ptr()).set_low($i) };
+                        }
+
+                        fn is_high(&mut self) -> bool {
+                            !self.is_low()
+                        }
+
+                        fn is_low(&mut self) -> bool {
+                            unsafe { (*$GPIOX::ptr()).is_low($i) }
+                        }
+
                         /// Erases the pin number from the type
                         ///
                         /// This is useful when you want to collect the pins into an array where you
@@ -586,47 +718,22 @@ macro_rules! gpio {
                         pub fn downgrade(self) -> Pin<Output<MODE>> {
                             Pin {
                                 i: $i,
+                                p: $PCH,
                                 port: $GPIOX::ptr() as *const dyn GpioRegExt,
                                 _mode: self._mode,
                             }
                         }
                     }
 
-                    impl<MODE> embedded_hal::digital::ErrorType for $PXi<Output<MODE>> {
-                        type Error = Infallible;
-                    }
-
-                    impl<MODE> StatefulOutputPin for $PXi<Output<MODE>> {
-                        fn is_set_high(&mut self) -> Result<bool, Self::Error> {
-                            self.is_set_low().map(|v| !v)
-                        }
-
-                        fn is_set_low(&mut self) -> Result<bool, Self::Error> {
-                            Ok(unsafe { (*$GPIOX::ptr()).is_set_low($i) })
-                        }
-                    }
-
-                    impl<MODE> OutputPin for $PXi<Output<MODE>> {
-                        fn set_high(&mut self) -> Result<(), Self::Error> {
-                            Ok(unsafe { (*$GPIOX::ptr()).set_high($i) })
-                        }
-
-                        fn set_low(&mut self) -> Result<(), Self::Error> {
-                            Ok(unsafe { (*$GPIOX::ptr()).set_low($i) })
-                        }
-                    }
-
-                    impl InputPin for $PXi<Output<OpenDrain>> {
-                        fn is_high(&mut self) -> Result<bool, Self::Error> {
-                            self.is_low().map(|v| !v)
-                        }
-
-                        fn is_low(&mut self) -> Result<bool, Self::Error> {
-                            Ok(unsafe { (*$GPIOX::ptr()).is_low($i) })
-                        }
-                    }
-
                     impl<MODE> $PXi<Input<MODE>> {
+                        pub fn is_high(&mut self) -> bool {
+                            !self.is_low()
+                        }
+
+                        pub fn is_low(&mut self) -> bool {
+                            unsafe { (*$GPIOX::ptr()).is_low($i) }
+                        }
+
                         /// Erases the pin number from the type
                         ///
                         /// This is useful when you want to collect the pins into an array where you
@@ -634,25 +741,13 @@ macro_rules! gpio {
                         pub fn downgrade(self) -> Pin<Input<MODE>> {
                             Pin {
                                 i: $i,
+                                p: $PCH,
                                 port: $GPIOX::ptr() as *const dyn GpioRegExt,
                                 _mode: self._mode,
                             }
                         }
                     }
 
-                    impl<MODE> embedded_hal::digital::ErrorType for $PXi<Input<MODE>> {
-                        type Error = Infallible;
-                    }
-
-                    impl<MODE> InputPin for $PXi<Input<MODE>> {
-                        fn is_high(&mut self) -> Result<bool, Self::Error> {
-                            self.is_low().map(|v| !v)
-                        }
-
-                        fn is_low(&mut self) -> Result<bool, Self::Error> {
-                            Ok(unsafe { (*$GPIOX::ptr()).is_low($i) })
-                        }
-                    }
                 )+
             }
         )+
@@ -660,7 +755,8 @@ macro_rules! gpio {
 }
 
 gpio!([
-    GPIOA, gpioa, gpioaen, PA, any(
+    // BUGBUG: py32f002b only has 8 pins?
+    GPIOA, gpioa, gpioaen, PA, b'A', any(
         feature = "device-selected"
     ) => [
         PA0: (pa0, 0, Input<Floating>),
@@ -680,7 +776,7 @@ gpio!([
         PA14: (pa14, 14, Input<Floating>),
         PA15: (pa15, 15, Input<Floating>),
     ],
-    GPIOB, gpiob, gpioben, PB, any(
+    GPIOB, gpiob, gpioben, PB, b'B', any(
         feature = "device-selected"
     ) => [
         PB0: (pb0, 0, Input<Floating>),
@@ -693,13 +789,13 @@ gpio!([
         PB7: (pb7, 7, Input<Floating>),
         PB8: (pb8, 8, Input<Floating>),
     ],
-    GPIOC, gpioc, gpiocen, PC, any(
+    GPIOC, gpioc, gpiocen, PC, b'C', any(
         feature = "py32f002b"
     ) => [
         PC0: (pf0, 0, Input<Floating>),
         PC1: (pf1, 1, Input<Floating>),
     ],
-    GPIOF, gpiof, gpiofen, PF, any(
+    GPIOF, gpiof, gpiofen, PF, b'F', any(
         feature = "py32f030",
         feature = "py32f003",
         feature = "py32f002a"

@@ -41,10 +41,10 @@
 //! // Whoops, got stuck, the watchdog issues a reset after 10 ms
 //! iwdg.feed();
 //! ```
-use embedded_hal::watchdog;
+use embedded_hal_02::watchdog;
 
-use crate::rcc::Rcc;
 use crate::pac::IWDG;
+use crate::rcc::Rcc;
 use crate::time::Hertz;
 
 /// Watchdog instance

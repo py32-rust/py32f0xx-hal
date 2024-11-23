@@ -34,7 +34,7 @@ use cortex_m::peripheral::SYST;
 use crate::rcc::{Clocks, Rcc};
 
 use crate::time::Hertz;
-use embedded_hal::timer::{CountDown, Periodic};
+use embedded_hal_02::timer::{CountDown, Periodic};
 use void::Void;
 
 /// Hardware timers

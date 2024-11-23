@@ -47,7 +47,7 @@ const VTEMPVAL_DELTA: u16 = VTEMPVAL_HIGH - VTEMPVAL_LOW;
 
 use core::ptr;
 
-use embedded_hal::{
+use embedded_hal_02::{
     adc::{Channel, OneShot},
     blocking::delay::DelayUs,
 };
@@ -58,8 +58,8 @@ use crate::{
     pac::{
         adc::{
             cfgr1::{ALIGN_A, RES_A},
-            smpr::SMP_A,
             cfgr2::CKMODE_A,
+            smpr::SMP_A,
         },
         ADC,
     },
@@ -318,7 +318,8 @@ impl VTemp {
     fn convert_temp(vtemp: u16) -> i16 {
         let vtempcal_low = unsafe { ptr::read(VTEMPCAL_LOW) } as i32;
         let vtempcal_high = unsafe { ptr::read(VTEMPCAL_HIGH) } as i32;
-        ((vtemp as i32 - vtempcal_low) * 100 * (VTEMPVAL_DELTA as i32) / (vtempcal_high - vtempcal_low)
+        ((vtemp as i32 - vtempcal_low) * 100 * (VTEMPVAL_DELTA as i32)
+            / (vtempcal_high - vtempcal_low)
             + 3000) as i16
     }
 
@@ -397,7 +398,7 @@ impl VRef {
         };
 
         adc.restore_cfg(prev_cfg);
-        
+
         ((u32::from(VREFINT_VAL) * 4095) / vref_val) as u16
     }
 }
@@ -520,14 +521,18 @@ impl Adc {
         while self.rb.cr.read().adcal().is_calibrating() {}
 
         #[cfg(any(feature = "py32f030", feature = "py32f003"))]
-        self.rb.cfgr1.modify(|_, w| w.dmacfg().bit(dmacfg).dmaen().bit(dmaen));
+        self.rb
+            .cfgr1
+            .modify(|_, w| w.dmacfg().bit(dmacfg).dmaen().bit(dmaen));
     }
 
     fn select_clock(&mut self, rcc: &mut Rcc, ckmode: AdcClockMode) {
         rcc.regs.apbrstr2.modify(|_, w| w.adcrst().reset());
         rcc.regs.apbrstr2.modify(|_, w| w.adcrst().clear_bit());
         rcc.regs.apbenr2.modify(|_, w| w.adcen().enabled());
-        self.rb.cfgr2.modify(|_, w| w.ckmode().variant(ckmode.into()));
+        self.rb
+            .cfgr2
+            .modify(|_, w| w.ckmode().variant(ckmode.into()));
     }
 
     /// Apply config settings
@@ -540,9 +545,9 @@ impl Adc {
                 .variant(self.precision.into())
                 .align()
                 .variant(self.align.into())
-                .wait().disabled()
+                .wait()
+                .disabled()
         });
-
     }
 
     fn power_up(&mut self, chan: u8) {
