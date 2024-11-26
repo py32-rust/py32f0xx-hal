@@ -23,12 +23,12 @@ static GPIO: Mutex<RefCell<Option<gpioa::PA5<Output<PushPull>>>>> = Mutex::new(R
 fn main() -> ! {
     if let (Some(mut p), Some(cp)) = (pac::Peripherals::take(), Peripherals::take()) {
         cortex_m::interrupt::free(move |cs| {
-            let mut rcc = p.RCC.configure().sysclk(24.mhz()).freeze(&mut p.FLASH);
+            let _rcc = p.RCC.configure().sysclk(24.mhz()).freeze(&mut p.FLASH);
 
-            let gpioa = p.GPIOA.split(&mut rcc);
+            let gpioa = p.GPIOA.split();
 
             // (Re-)configure PA5 as output
-            let led = gpioa.pa5.into_push_pull_output(cs);
+            let led = gpioa.pa5.into_push_pull_output();
 
             // Transfer GPIO into a shared structure
             *GPIO.borrow(cs).borrow_mut() = Some(led);
@@ -71,13 +71,13 @@ fn SysTick() {
             // Check state variable, keep LED off most of the time and turn it on every 10th tick
             if *STATE < 10 {
                 // Turn off the LED
-                led.set_low().ok();
+                led.set_low();
 
                 // And now increment state variable
                 *STATE += 1;
             } else {
                 // Turn on the LED
-                led.set_high().ok();
+                led.set_high();
 
                 // And set new state variable back to 0
                 *STATE = 0;

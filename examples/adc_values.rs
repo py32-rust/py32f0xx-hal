@@ -8,7 +8,7 @@ use panic_halt as _;
 
 use py32f0xx_hal as hal;
 
-use crate::hal::{gpio, pac, prelude::*, rcc::HSIFreq};
+use crate::hal::{gpio, pac, prelude::*};
 
 use cortex_m::{interrupt::Mutex, peripheral::syst::SystClkSource::Core};
 use cortex_m_rt::{entry, exception};
@@ -31,9 +31,9 @@ fn main() -> ! {
     ) {
         cortex_m::interrupt::free(move |cs| {
             let mut flash = dp.FLASH;
-            let mut rcc = dp.RCC.configure().sysclk(24.mhz()).freeze(&mut flash);
+            let rcc = dp.RCC.configure().sysclk(24.mhz()).freeze(&mut flash);
 
-            let gpioa = dp.GPIOA.split(&mut rcc);
+            let gpioa = dp.GPIOA.split();
 
             let mut syst = cp.SYST;
 
@@ -50,18 +50,18 @@ fn main() -> ! {
             syst.enable_interrupt();
 
             // USART1 at PA2 (TX) and PA3(RX)
-            let tx = gpioa.pa2.into_alternate_af1(cs);
-            let rx = gpioa.pa3.into_alternate_af1(cs);
+            let tx = gpioa.pa2.into_alternate_af1();
+            let rx = gpioa.pa3.into_alternate_af1();
 
             // Initialiase UART
             let (mut tx, _) =
-                hal::serial::Serial::usart1(dp.USART1, (tx, rx), 115_200.bps(), &mut rcc).split();
+                hal::serial::Serial::new(dp.USART1, (tx, rx), 115_200.bps(), &rcc.clocks).split();
 
             // Initialise ADC
-            let adc = hal::adc::Adc::new(dp.ADC, &mut rcc, hal::adc::AdcClockMode::default());
+            let adc = hal::adc::Adc::new(dp.ADC, hal::adc::AdcClockMode::default());
 
-            let ain0 = gpioa.pa0.into_analog(cs); // ADC_IN0
-            let ain1 = gpioa.pa1.into_analog(cs); // ADC_IN1
+            let ain0 = gpioa.pa0.into_analog(); // ADC_IN0
+            let ain1 = gpioa.pa1.into_analog(); // ADC_IN1
 
             // Output a friendly greeting
             tx.write_str("\n\rThis ADC example will read various values using the ADC and print them out to the serial terminal\r\n").ok();

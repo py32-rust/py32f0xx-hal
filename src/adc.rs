@@ -12,29 +12,27 @@
 //! use crate::hal::prelude::*;
 //! use crate::hal::adc::Adc;
 //!
-//! cortex_m::interrupt::free(|cs| {
-//!     let mut p = pac::Peripherals::take().unwrap();
-//!     let mut rcc = p.RCC.configure().freeze(&mut p.FLASH);
+//! let mut p = pac::Peripherals::take().unwrap();
+//! let rcc = p.RCC.configure().freeze(&mut p.FLASH);
 //!
-//!     let gpioa = p.GPIOA.split(&mut rcc);
+//! let gpioa = p.GPIOA.split();
 //!
-//!     let mut led = gpioa.pa1.into_push_pull_pull_output(cs);
-//!     let mut an_in = gpioa.pa0.into_analog(cs);
+//! let mut led = gpioa.pa1.into_push_pull_pull_output();
+//! let mut an_in = gpioa.pa0.into_analog();
 //!
-//!     let mut delay = Delay::new(cp.SYST, &rcc);
+//! let mut delay = Delay::new(cp.SYST, &rcc);
 //!
-//!     let mut adc = Adc::new(p.ADC, &mut rcc);
+//! let mut adc = Adc::new(p.ADC);
 //!
-//!     loop {
-//!         let val: u16 = adc.read(&mut an_in).unwrap();
-//!         if val < ((1 << 8) - 1) {
-//!             led.set_low();
-//!         } else {
-//!             led.set_high();
-//!         }
-//!         delay.delay_ms(50_u16);
+//! loop {
+//!     let val: u16 = adc.read(&mut an_in).unwrap();
+//!     if val < ((1 << 8) - 1) {
+//!         led.set_low();
+//!     } else {
+//!         led.set_high();
 //!     }
-//! });
+//!     delay.delay_ms(50_u16);
+//! }
 //! ```
 
 // const VREFCAL: *const u16 = 0x1FFF_0F1A as *const u16;
@@ -61,9 +59,9 @@ use crate::{
             cfgr2::CKMODE_A,
             smpr::SMP_A,
         },
-        ADC,
+        ADC, RCC,
     },
-    rcc::Rcc,
+    rcc::{Enable, Reset},
 };
 
 /// Analog to Digital converter interface
@@ -413,14 +411,14 @@ impl Adc {
     /// Sets all configurable parameters to defaults, enables the HSI14 clock
     /// for the ADC if it is not already enabled and performs a boot time
     /// calibration. As such this method may take an appreciable time to run.
-    pub fn new(adc: ADC, rcc: &mut Rcc, ckmode: AdcClockMode) -> Self {
+    pub fn new(adc: ADC, ckmode: AdcClockMode) -> Self {
         let mut s = Self {
             rb: adc,
             sample_time: AdcSampleTime::default(),
             align: AdcAlign::default(),
             precision: AdcPrecision::default(),
         };
-        s.select_clock(rcc, ckmode);
+        s.select_clock(ckmode);
         s.calibrate();
         s
     }
@@ -526,10 +524,10 @@ impl Adc {
             .modify(|_, w| w.dmacfg().bit(dmacfg).dmaen().bit(dmaen));
     }
 
-    fn select_clock(&mut self, rcc: &mut Rcc, ckmode: AdcClockMode) {
-        rcc.regs.apbrstr2.modify(|_, w| w.adcrst().reset());
-        rcc.regs.apbrstr2.modify(|_, w| w.adcrst().clear_bit());
-        rcc.regs.apbenr2.modify(|_, w| w.adcen().enabled());
+    fn select_clock(&mut self, ckmode: AdcClockMode) {
+        let rcc = unsafe { &(*RCC::ptr()) };
+        ADC::reset(rcc);
+        ADC::enable(rcc);
         self.rb
             .cfgr2
             .modify(|_, w| w.ckmode().variant(ckmode.into()));

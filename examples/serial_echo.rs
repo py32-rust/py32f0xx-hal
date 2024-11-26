@@ -15,12 +15,13 @@ use crate::hal::{
 };
 
 use cortex_m_rt::entry;
+use embedded_hal_02::serial::{Read, Write as OtherWrite};
 
 #[entry]
 fn main() -> ! {
     if let Some(p) = pac::Peripherals::take() {
         let mut flash = p.FLASH;
-        let mut rcc = p
+        let rcc = p
             .RCC
             .configure()
             .hsi(HSIFreq::Freq24mhz)
@@ -29,21 +30,19 @@ fn main() -> ! {
 
         rcc.configure_mco(MCOSrc::Sysclk, MCODiv::NotDivided);
 
-        let gpioa = p.GPIOA.split(&mut rcc);
+        let gpioa = p.GPIOA.split();
 
-        let (tx, rx) = cortex_m::interrupt::free(move |cs| {
-            (
-                gpioa.pa2.into_alternate_af1(cs),
-                gpioa.pa3.into_alternate_af1(cs),
-            )
-        });
+        let (tx, rx) = (
+            gpioa.pa2.into_alternate_af1(),
+            gpioa.pa3.into_alternate_af1(),
+        );
 
-        let mut serial = Serial::usart1(p.USART1, (tx, rx), 115_200.bps(), &mut rcc);
+        let mut serial = Serial::new(p.USART1, (tx, rx), 115_200.bps(), &rcc.clocks);
         serial.write_str("Input any key:\n").ok();
 
         loop {
             // Wait for reception of a single byte
-            let received = nb::block!(serial.read()).unwrap();
+            let received: u8 = nb::block!(serial.read()).unwrap();
 
             // Send back previously received byte and wait for completion
             nb::block!(serial.write(received)).ok();

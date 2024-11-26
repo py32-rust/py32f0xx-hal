@@ -5,12 +5,12 @@ use panic_halt as _;
 
 use py32f0xx_hal as hal;
 
-use crate::hal::{delay::Delay, pac, prelude::*, serial::Serial, time::Hertz, watchdog::Watchdog};
-
+use crate::hal::{delay::Delay, pac, prelude::*, serial::Serial, time::Hertz, watchdog};
+use core::fmt::Write;
 use cortex_m::peripheral::Peripherals;
 use cortex_m_rt::entry;
-
-use core::fmt::Write;
+use embedded_hal_02::blocking::delay::DelayMs;
+use embedded_hal_02::watchdog::{Watchdog, WatchdogEnable};
 
 #[entry]
 fn main() -> ! {
@@ -18,22 +18,22 @@ fn main() -> ! {
         let mut flash = p.FLASH;
         let mut rcc = p.RCC.configure().sysclk(8.mhz()).freeze(&mut flash);
 
-        let gpioa = p.GPIOA.split(&mut rcc);
+        let gpioa = p.GPIOA.split();
         let dbg = p.DBG;
 
         // Disable the watchdog when the cpu is stopped under debug
         dbg.apb_fz1.modify(|_, w| w.dbg_iwdg_stop().set_bit());
 
-        let mut watchdog = Watchdog::new(&mut rcc, p.IWDG);
+        let mut watchdog = watchdog::Watchdog::new(&mut rcc, p.IWDG);
 
         // Get delay provider
         let mut delay = Delay::new(cp.SYST, &rcc);
 
         // Configure serial TX pin
-        let tx = cortex_m::interrupt::free(move |cs| gpioa.pa2.into_alternate_af1(cs));
+        let tx = gpioa.pa2.into_alternate_af1();
 
         // Obtain a serial peripheral with for unidirectional communication
-        let mut serial = Serial::usart1tx(p.USART1, tx, 115_200.bps(), &mut rcc);
+        let mut serial = Serial::new(p.USART1, (tx, ()), 115_200.bps(), &rcc.clocks);
 
         serial.write_str("RESET \r\n").ok();
 

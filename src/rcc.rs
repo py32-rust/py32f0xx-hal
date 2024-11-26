@@ -414,6 +414,7 @@ impl Clocks {
     }
 
     /// Returns the frequency of the APB Timers
+    /// If pclk is prescaled from hclk, the frequency fed into the timers is doubled
     pub const fn pclk_tim(&self) -> Hertz {
         Hertz(self.pclk.0 * if self.ppre() == 1 { 1 } else { 2 })
     }

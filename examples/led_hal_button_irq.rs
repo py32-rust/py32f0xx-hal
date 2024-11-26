@@ -16,6 +16,7 @@ use cortex_m::{interrupt::Mutex, peripheral::Peripherals as c_m_Peripherals};
 use cortex_m_rt::entry;
 
 use core::{cell::RefCell, ops::DerefMut};
+use embedded_hal_02::blocking::delay::DelayMs;
 
 // Make our LED globally available
 static LED: Mutex<RefCell<Option<gpioa::PA5<Output<PushPull>>>>> = Mutex::new(RefCell::new(None));
@@ -35,20 +36,20 @@ fn main() -> ! {
             rcc.apbenr2.modify(|_, w| w.syscfgen().set_bit());
 
             let mut flash = p.FLASH;
-            let mut rcc = rcc.configure().sysclk(8.mhz()).freeze(&mut flash);
+            let rcc = rcc.configure().sysclk(8.mhz()).freeze(&mut flash);
 
-            let gpioa = p.GPIOA.split(&mut rcc);
-            let gpiob = p.GPIOB.split(&mut rcc);
+            let gpioa = p.GPIOA.split();
+            let gpiob = p.GPIOB.split();
             let exti = p.EXTI;
 
             // Configure PB2 as input (button)
-            let _ = gpiob.pb2.into_pull_down_input(cs);
+            let _ = gpiob.pb2.into_pull_down_input();
 
             // Configure PA5 as output (LED)
-            let mut led = gpioa.pa5.into_push_pull_output(cs);
+            let mut led = gpioa.pa5.into_push_pull_output();
 
             // Turn off LED
-            led.set_low().ok();
+            led.set_low();
 
             // Initialise delay provider
             let delay = Delay::new(cp.SYST, &rcc);
@@ -95,13 +96,13 @@ fn EXTI2_3() {
             INT.borrow(cs).borrow_mut().deref_mut(),
         ) {
             // Turn on LED
-            led.set_high().ok();
+            led.set_high();
 
             // Wait a second
             delay.delay_ms(1_000_u16);
 
             // Turn off LED
-            led.set_low().ok();
+            led.set_low();
 
             // Clear event triggering the interrupt
             exti.pr.write(|w| w.pr2().clear());

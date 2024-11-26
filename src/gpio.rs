@@ -4,6 +4,7 @@ use core::marker::PhantomData;
 
 use crate::pac;
 
+mod hal_02;
 mod hal_1;
 
 pub trait PinExt {
@@ -198,36 +199,49 @@ pub struct AF14;
 pub struct AF15;
 
 /// Alternate function mode (type state)
+#[derive(Default)]
 pub struct Alternate<AF> {
     _mode: PhantomData<AF>,
 }
 
 /// Input mode (type state)
+#[derive(Default)]
 pub struct Input<MODE> {
     _mode: PhantomData<MODE>,
 }
 
 /// Floating input (type state)
+#[derive(Default)]
 pub struct Floating;
 
 /// Pulled down input (type state)
+#[derive(Default)]
 pub struct PullDown;
 
 /// Pulled up input (type state)
+#[derive(Default)]
 pub struct PullUp;
 
 /// Open drain input or output (type state)
+#[derive(Default)]
 pub struct OpenDrain;
 
 /// Analog mode (type state)
+#[derive(Default)]
 pub struct Analog;
 
 /// Output mode (type state)
+#[derive(Default)]
 pub struct Output<MODE> {
     _mode: PhantomData<MODE>,
 }
 
+/// Used by the debugger (type state)
+#[derive(Default)]
+pub struct Debugger;
+
 /// Push pull output (type state)
+#[derive(Default)]
 pub struct PushPull;
 
 /// Fully erased pin
@@ -290,7 +304,7 @@ gpio_trait!(gpiof);
 gpio_trait!(gpioc);
 
 macro_rules! gpio {
-    ([$($GPIOX:ident, $gpiox:ident, $gpioxenr:ident, $PXx:ident, $PCH:literal, $gate:meta => [
+    ([$($GPIOX:ident, $gpiox:ident, $PXx:ident, $PCH:literal, $gate:meta => [
         $($PXi:ident: ($pxi:ident, $i:expr, $MODE:ty),)+
     ]),+]) => {
         $(
@@ -699,16 +713,27 @@ macro_rules! gpio {
                             unsafe { (*$GPIOX::ptr()).set_high($i) };
                         }
 
-                        fn set_low(&mut self) {
+                        #[allow(dead_code)]
+                        pub fn set_low(&mut self) {
                             unsafe { (*$GPIOX::ptr()).set_low($i) };
                         }
 
-                        fn is_high(&mut self) -> bool {
+                        #[allow(dead_code)]
+                        pub fn is_high(&mut self) -> bool {
                             !self.is_low()
                         }
 
-                        fn is_low(&mut self) -> bool {
+                        #[allow(dead_code)]
+                        pub fn is_low(&mut self) -> bool {
                             unsafe { (*$GPIOX::ptr()).is_low($i) }
+                        }
+
+                        pub fn toggle(&mut self) {
+                            if self.is_low() {
+                                self.set_high();
+                            } else {
+                                self.set_low();
+                            }
                         }
 
                         /// Erases the pin number from the type
@@ -756,7 +781,7 @@ macro_rules! gpio {
 
 gpio!([
     // BUGBUG: py32f002b only has 8 pins?
-    GPIOA, gpioa, gpioaen, PA, b'A', any(
+    GPIOA, gpioa, PA, b'A', any(
         feature = "device-selected"
     ) => [
         PA0: (pa0, 0, Input<Floating>),
@@ -776,7 +801,7 @@ gpio!([
         PA14: (pa14, 14, Input<Floating>),
         PA15: (pa15, 15, Input<Floating>),
     ],
-    GPIOB, gpiob, gpioben, PB, b'B', any(
+    GPIOB, gpiob, PB, b'B', any(
         feature = "device-selected"
     ) => [
         PB0: (pb0, 0, Input<Floating>),
@@ -789,13 +814,13 @@ gpio!([
         PB7: (pb7, 7, Input<Floating>),
         PB8: (pb8, 8, Input<Floating>),
     ],
-    GPIOC, gpioc, gpiocen, PC, b'C', any(
+    GPIOC, gpioc, PC, b'C', any(
         feature = "py32f002b"
     ) => [
         PC0: (pf0, 0, Input<Floating>),
         PC1: (pf1, 1, Input<Floating>),
     ],
-    GPIOF, gpiof, gpiofen, PF, b'F', any(
+    GPIOF, gpiof, PF, b'F', any(
         feature = "py32f030",
         feature = "py32f003",
         feature = "py32f002a"

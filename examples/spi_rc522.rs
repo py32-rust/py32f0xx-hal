@@ -10,22 +10,19 @@ use crate::hal::{
     delay::Delay,
     pac,
     prelude::*,
-    serial::Serial,
     spi::Spi,
     spi::{Mode, Phase, Polarity},
     time::Hertz,
     timers::Timer,
 };
-
-use nb::block;
-
 use cortex_m_rt::entry;
-
 use defmt::{error, info};
+use embedded_hal_02::blocking::delay::DelayMs;
+use embedded_hal_02::digital::v2::OutputPin;
+use embedded_hal_02::timer::CountDown;
 
-use mfrc522::comm::{eh02::spi::SpiInterface, Interface};
-use mfrc522::error::Error;
-use mfrc522::{Initialized, Mfrc522, Uid};
+use mfrc522::comm::eh02::spi::SpiInterface;
+use mfrc522::Mfrc522;
 
 /// A basic serial to spi example
 ///
@@ -45,31 +42,35 @@ fn main() -> ! {
         cortex_m::peripheral::Peripherals::take(),
     ) {
         let mut flash = p.FLASH;
-        let mut rcc = p.RCC.configure().freeze(&mut flash);
+        let rcc = p.RCC.configure().freeze(&mut flash);
 
         let mut delay = Delay::new(cp.SYST, &rcc);
 
-        let gpioa = p.GPIOA.split(&mut rcc);
+        let gpioa = p.GPIOA.split();
 
-        let (sck, miso, mosi, mut nss, mut rst) = cortex_m::interrupt::free(move |cs| {
-            (
-                // SPI pins
-                gpioa.pa5.into_alternate_af0(cs),
-                gpioa.pa6.into_alternate_af0(cs),
-                gpioa.pa7.into_alternate_af0(cs),
-                // Aux pins
-                gpioa.pa4.into_push_pull_output(cs),
-                gpioa.pa1.into_push_pull_output(cs),
-            )
-        });
-        rst.set_low();
+        let (sck, miso, mosi, nss, mut rst) = (
+            // SPI pins
+            gpioa.pa5.into_alternate_af0(),
+            gpioa.pa6.into_alternate_af0(),
+            gpioa.pa7.into_alternate_af0(),
+            // Aux pins
+            gpioa.pa4.into_push_pull_output().downgrade(),
+            gpioa.pa1.into_push_pull_output().downgrade(),
+        );
+        rst.set_low().ok();
 
         // Configure SPI with 1MHz rate
-        let mut spi = Spi::spi1(p.SPI1, (sck, miso, mosi), MODE, 1.mhz(), &mut rcc);
+        let spi = Spi::new(
+            p.SPI1,
+            (Some(sck), Some(miso), Some(mosi)),
+            MODE,
+            1.mhz(),
+            &rcc.clocks,
+        );
         let itf = SpiInterface::new(spi).with_nss(nss).with_delay(|| {
             delay.delay_ms(1_u16);
         });
-        rst.set_high();
+        rst.set_high().ok();
 
         let mut mfrc522 = Mfrc522::new(itf).init().unwrap();
 
@@ -77,7 +78,7 @@ fn main() -> ! {
         info!("MFRC522 version: 0x{:02x}", ver);
         assert!(ver == 0x91 || ver == 0x92);
 
-        let mut timer = Timer::tim1(p.TIM1, Hertz(1), &mut rcc);
+        let mut timer = Timer::tim1(p.TIM1, Hertz(1), &rcc.clocks);
 
         loop {
             info!("Waiting for card...");
@@ -89,7 +90,7 @@ fn main() -> ! {
                         error!("Failed to select card");
                     }
                 }
-                Err(e) => error!("Error when requesting ATQA!"),
+                Err(_e) => error!("Error when requesting ATQA!"),
             }
 
             nb::block!(timer.wait()).unwrap();

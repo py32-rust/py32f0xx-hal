@@ -57,6 +57,7 @@ use crate::time::Hertz;
 
 #[cfg(feature = "with-dma")]
 pub mod dma;
+mod hal_02;
 mod hal_1;
 
 /// Clock polarity

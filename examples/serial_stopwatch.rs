@@ -14,9 +14,9 @@ use crate::hal::{
 use core::cell::RefCell;
 use core::fmt::Write as _;
 use core::ops::DerefMut;
-
 use cortex_m::{interrupt::Mutex, peripheral::Peripherals as c_m_Peripherals};
 use cortex_m_rt::entry;
+use embedded_hal_02::timer::CountDown;
 
 // Make timer interrupt registers globally available
 static GINT: Mutex<RefCell<Option<Timer<TIM16>>>> = Mutex::new(RefCell::new(None));
@@ -59,15 +59,15 @@ fn main() -> ! {
     if let (Some(p), Some(cp)) = (Peripherals::take(), c_m_Peripherals::take()) {
         let mut serial = cortex_m::interrupt::free(move |cs| {
             let mut flash = p.FLASH;
-            let mut rcc = p.RCC.configure().sysclk(24.mhz()).freeze(&mut flash);
+            let rcc = p.RCC.configure().sysclk(24.mhz()).freeze(&mut flash);
 
             // Use USART1 with PA2 and PA3 as serial port
-            let gpioa = p.GPIOA.split(&mut rcc);
-            let tx = gpioa.pa2.into_alternate_af1(cs);
-            let rx = gpioa.pa3.into_alternate_af1(cs);
+            let gpioa = p.GPIOA.split();
+            let tx = gpioa.pa2.into_alternate_af1();
+            let rx = gpioa.pa3.into_alternate_af1();
 
             // Set up a timer expiring every millisecond
-            let mut timer = Timer::tim16(p.TIM16, 1000.hz(), &mut rcc);
+            let mut timer = Timer::tim16(p.TIM16, 1000.hz(), &rcc.clocks);
 
             // Generate an interrupt when the timer expires
             timer.listen(Event::TimeOut);
@@ -84,7 +84,7 @@ fn main() -> ! {
             cortex_m::peripheral::NVIC::unpend(Interrupt::TIM16);
 
             // Set up our serial port
-            Serial::usart1(p.USART1, (tx, rx), 115_200.bps(), &mut rcc)
+            Serial::new(p.USART1, (tx, rx), 115_200.bps(), &rcc.clocks)
         });
 
         // Print a welcome message
@@ -96,7 +96,7 @@ fn main() -> ! {
 
         loop {
             // Wait for reception of a single byte
-            let received = nb::block!(serial.read()).unwrap();
+            let received = nb::block!(serial.rx.read()).unwrap();
 
             let time = cortex_m::interrupt::free(|cs| {
                 let mut time = TIME.borrow(cs).borrow_mut();

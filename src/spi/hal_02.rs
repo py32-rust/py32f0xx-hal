@@ -30,7 +30,7 @@ impl From<Mode> for super::Mode {
     }
 }
 
-impl<SPI, W, PULL> spi::FullDuplex<W> for Spi<SPI, W, PULL>
+impl<SPI, SCKPIN, MISOPIN, MOSIPIN, W> spi::FullDuplex<W> for Spi<SPI, SCKPIN, MISOPIN, MOSIPIN, W>
 where
     SPI: Instance,
     W: Copy,
@@ -46,14 +46,17 @@ where
     }
 }
 
-impl<SPI, W, PULL> blocking::transfer::Default<W> for Spi<SPI, W, PULL>
+impl<SPI, SCKPIN, MISOPIN, MOSIPIN, W> blocking::transfer::Default<W>
+    for Spi<SPI, SCKPIN, MISOPIN, MOSIPIN, W>
 where
     SPI: Instance,
     W: Copy,
 {
 }
 
-impl<SPI: Instance, PULL> blocking::Write<u8> for Spi<SPI, u8, PULL> {
+impl<SPI: Instance, SCKPIN, MISOPIN, MOSIPIN> blocking::Write<u8>
+    for Spi<SPI, SCKPIN, MISOPIN, MOSIPIN, u8>
+{
     type Error = Error;
 
     fn write(&mut self, words: &[u8]) -> Result<(), Error> {
@@ -61,7 +64,9 @@ impl<SPI: Instance, PULL> blocking::Write<u8> for Spi<SPI, u8, PULL> {
     }
 }
 
-impl<SPI: Instance, PULL> blocking::Write<u16> for Spi<SPI, u16, PULL> {
+impl<SPI: Instance, SCKPIN, MISOPIN, MOSIPIN> blocking::Write<u16>
+    for Spi<SPI, SCKPIN, MISOPIN, MOSIPIN, u16>
+{
     type Error = Error;
 
     fn write(&mut self, words: &[u16]) -> Result<(), Error> {

@@ -1,18 +1,9 @@
-use core::convert::Infallible;
-
 use super::{Input, OpenDrain, Output, Pin};
-
-//pub use embedded_hal::digital::PinState;
+use core::convert::Infallible;
 use embedded_hal::digital::{ErrorType, InputPin, OutputPin, StatefulOutputPin};
 
-// fn into_state(state: PinState) -> super::PinState {
-//     match state {
-//         PinState::Low => super::PinState::Low,
-//         PinState::High => super::PinState::High,
-//     }
-// }
-
 // Implementations for `Pin`
+
 impl<MODE> ErrorType for Pin<Output<MODE>> {
     type Error = Infallible;
 }

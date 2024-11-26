@@ -1,26 +1,26 @@
 #![no_main]
 #![no_std]
 
-use hal::rcc::HSIFreq;
 use panic_halt as _;
 
 use py32f0xx_hal as hal;
 
 use crate::hal::{
-    gpio::*,
+    gpio::{Output, Pin, PushPull},
     pac::{interrupt, Interrupt, Peripherals, TIM16},
     prelude::*,
     time::Hertz,
     timers::*,
 };
 
-use cortex_m_rt::entry;
-
 use core::cell::RefCell;
 use cortex_m::{interrupt::Mutex, peripheral::Peripherals as c_m_Peripherals};
+use cortex_m_rt::entry;
+use embedded_hal_02::digital::v2::ToggleableOutputPin;
+use embedded_hal_02::timer::CountDown;
 
 // A type definition for the GPIO pin to be used for our LED
-type LEDPIN = gpioa::PA5<Output<PushPull>>;
+type LEDPIN = Pin<Output<PushPull>>;
 
 // Make LED pin globally available
 static GLED: Mutex<RefCell<Option<LEDPIN>>> = Mutex::new(RefCell::new(None));
@@ -57,23 +57,23 @@ fn TIM16() {
 fn main() -> ! {
     if let (Some(mut p), Some(cp)) = (Peripherals::take(), c_m_Peripherals::take()) {
         cortex_m::interrupt::free(move |cs| {
-            let mut rcc = p
+            let rcc = p
                 .RCC
                 .configure()
                 .sysclk(24.mhz())
                 .pclk(24.mhz())
                 .freeze(&mut p.FLASH);
 
-            let gpioa = p.GPIOA.split(&mut rcc);
+            let gpioa = p.GPIOA.split();
 
             // (Re-)configure PA5 as output
-            let led = gpioa.pa5.into_push_pull_output(cs);
+            let led = gpioa.pa5.into_push_pull_output().downgrade();
 
             // Move the pin into our global storage
             *GLED.borrow(cs).borrow_mut() = Some(led);
 
             // Set up a timer expiring after 1s
-            let mut timer = Timer::tim16(p.TIM16, Hertz(10), &mut rcc);
+            let mut timer = Timer::tim16(p.TIM16, Hertz(10), &rcc.clocks);
 
             // Generate an interrupt when the timer expires
             timer.listen(Event::TimeOut);

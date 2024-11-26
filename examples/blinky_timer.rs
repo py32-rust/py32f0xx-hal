@@ -9,18 +9,21 @@ use crate::hal::{pac, prelude::*, time::Hertz, timers::*};
 
 use cortex_m_rt::entry;
 
+use embedded_hal_02::digital::v2::ToggleableOutputPin;
+use embedded_hal_02::timer::CountDown;
+
 #[entry]
 fn main() -> ! {
     if let Some(mut p) = pac::Peripherals::take() {
-        let mut rcc = p.RCC.configure().sysclk(8.mhz()).freeze(&mut p.FLASH);
+        let rcc = p.RCC.configure().sysclk(8.mhz()).freeze(&mut p.FLASH);
 
-        let gpioa = p.GPIOA.split(&mut rcc);
+        let gpioa = p.GPIOA.split();
 
         // (Re-)configure PA5 as output
-        let mut led = cortex_m::interrupt::free(move |cs| gpioa.pa5.into_push_pull_output(cs));
+        let mut led = gpioa.pa5.into_push_pull_output().downgrade();
 
         // Set up a timer expiring after 1s
-        let mut timer = Timer::tim1(p.TIM1, Hertz(5), &mut rcc);
+        let mut timer = Timer::tim1(p.TIM1, Hertz(5), &rcc.clocks);
 
         loop {
             led.toggle().ok();

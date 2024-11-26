@@ -13,26 +13,24 @@
 //! use crate::hal::timers::*;
 //! use nb::block;
 //!
-//! cortex_m::interrupt::free(|cs| {
-//!     let mut p = pac::Peripherals::take().unwrap();
-//!     let mut rcc = p.RCC.configure().freeze(&mut p.FLASH);
+//! let mut p = pac::Peripherals::take().unwrap();
+//! let rcc = p.RCC.configure().freeze(&mut p.FLASH);
 //!
-//!     let gpioa = p.GPIOA.split(&mut rcc);
+//! let gpioa = p.GPIOA.split();
 //!
-//!     let mut led = gpioa.pa1.into_push_pull_pull_output(cs);
+//! let mut led = gpioa.pa1.into_push_pull_pull_output();
 //!
-//!     let mut timer = Timer::tim1(p.TIM1, Hertz(1), &mut rcc);
-//!     loop {
-//!         led.toggle();
-//!         block!(timer.wait()).ok();
-//!     }
-//! });
+//! let mut timer = Timer::tim1(p.TIM1, Hertz(1), &rcc.clocks);
+//! loop {
+//!     led.toggle();
+//!     block!(timer.wait()).ok();
+//! }
 //! ```
 use cortex_m::peripheral::syst::SystClkSource;
 use cortex_m::peripheral::SYST;
 
-use crate::rcc::{Clocks, Rcc};
-
+use crate::pac::RCC;
+use crate::rcc::{BusTimerClock, Clocks, Enable, Rcc, Reset};
 use crate::time::Hertz;
 use embedded_hal_02::timer::{CountDown, Periodic};
 use void::Void;
@@ -112,8 +110,10 @@ impl CountDown for Timer<SYST> {
 
 impl Periodic for Timer<SYST> {}
 
+pub trait Instance: crate::Sealed + Enable + Reset + BusTimerClock {}
+
 macro_rules! timers {
-    ($($TIM:ident: ($tim:ident, $timXen:ident, $timXrst:ident, $apbenr:ident, $apbrstr:ident),)+) => {
+    ($($TIM:ident: $tim:ident,)+) => {
         $(
             use crate::pac::$TIM;
             impl Timer<$TIM> {
@@ -121,17 +121,17 @@ macro_rules! timers {
                 // even if the `$TIM` are non overlapping (compare to the `free` function below
                 // which just works)
                 /// Configures a TIM peripheral as a periodic count down timer
-                pub fn $tim<T>(tim: $TIM, timeout: T, rcc: &mut Rcc) -> Self
+                pub fn $tim<T>(tim: $TIM, timeout: T, clocks: &Clocks) -> Self
                 where
                     T: Into<Hertz>,
                 {
                     // enable and reset peripheral to a clean slate state
-                    rcc.regs.$apbenr.modify(|_, w| w.$timXen().set_bit());
-                    rcc.regs.$apbrstr.modify(|_, w| w.$timXrst().set_bit());
-                    rcc.regs.$apbrstr.modify(|_, w| w.$timXrst().clear_bit());
+                    let rcc = unsafe { &(*RCC::ptr()) };
+                    $TIM::enable(rcc);
+                    $TIM::reset(rcc);
 
                     let mut timer = Timer {
-                        clocks: rcc.clocks,
+                        clocks: *clocks,
                         tim,
                     };
                     timer.start(timeout);
@@ -165,7 +165,7 @@ macro_rules! timers {
                     // Pause counter
                     self.tim.cr1.modify(|_, w| w.cen().clear_bit());
                     // Disable timer
-                    rcc.$apbenr.modify(|_, w| w.$timXen().clear_bit());
+                    $TIM::disable(rcc);
                     self.tim
                 }
 
@@ -189,13 +189,7 @@ macro_rules! timers {
                     self.tim.cnt.reset();
 
                     let frequency = timeout.into().0;
-                    // If pclk is prescaled from hclk, the frequency fed into the timers is doubled
-                    let tclk = if self.clocks.hclk().0 == self.clocks.pclk().0 {
-                        self.clocks.pclk().0
-                    } else {
-                        self.clocks.pclk().0 * 2
-                    };
-                    let ticks = tclk / frequency;
+                    let ticks = $TIM::timer_clock(&self.clocks).0 / frequency;
 
                     let psc = cast::u16((ticks - 1) / (1 << 16)).unwrap();
                     self.tim.psc.write(|w| unsafe { w.psc().bits(psc) });
@@ -225,23 +219,23 @@ macro_rules! timers {
 }
 
 timers! {
-    TIM1: (tim1, tim1en, tim1rst, apbenr2, apbrstr2),
+    TIM1: tim1,
 }
 
 #[cfg(any(feature = "py32f030", feature = "py32f003", feature = "py32f002a"))]
 timers! {
-    TIM16: (tim16, tim16en, tim16rst, apbenr2, apbrstr2),
+    TIM16: tim16,
 }
 
 #[cfg(any(feature = "py32f030", feature = "py32f003", feature = "py32f002b"))]
 timers! {
-    TIM14: (tim14, tim14en, tim14rst, apbenr2, apbrstr2),
+    TIM14: tim14,
 }
 
 #[cfg(any(feature = "py32f030", feature = "py32f003"))]
 timers! {
-    TIM3: (tim3, tim3en, tim3rst, apbenr1, apbrstr1),
-    TIM17: (tim17, tim17en, tim17rst, apbenr2, apbrstr2),
+    TIM3: tim3,
+    TIM17: tim17,
 }
 
 use crate::gpio::AF2;

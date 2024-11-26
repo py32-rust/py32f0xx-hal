@@ -9,28 +9,27 @@ use crate::hal::{adc::Adc, delay::Delay, pac, prelude::*};
 
 use cortex_m::peripheral::Peripherals;
 use cortex_m_rt::entry;
+use embedded_hal_02::adc::OneShot;
+use embedded_hal_02::blocking::delay::DelayMs;
+use embedded_hal_02::digital::v2::ToggleableOutputPin;
 
 #[entry]
 fn main() -> ! {
     if let (Some(mut p), Some(cp)) = (pac::Peripherals::take(), Peripherals::take()) {
-        let mut rcc = p.RCC.configure().sysclk(8.mhz()).freeze(&mut p.FLASH);
+        let rcc = p.RCC.configure().sysclk(8.mhz()).freeze(&mut p.FLASH);
 
-        let gpioa = p.GPIOA.split(&mut rcc);
+        let gpioa = p.GPIOA.split();
 
-        let (mut led, mut an_in) = cortex_m::interrupt::free(move |cs| {
-            (
-                // (Re-)configure PA5 as output
-                gpioa.pa5.into_push_pull_output(cs),
-                // (Re-)configure PA0 as analog input
-                gpioa.pa0.into_analog(cs),
-            )
-        });
+        // (Re-)configure PA5 as output
+        let mut led = gpioa.pa5.into_push_pull_output().downgrade();
+        // (Re-)configure PA0 as analog input
+        let mut an_in = gpioa.pa0.into_analog();
 
         // Get delay provider
         let mut delay = Delay::new(cp.SYST, &rcc);
 
         // Get access to the ADC
-        let mut adc = Adc::new(p.ADC, &mut rcc, hal::adc::AdcClockMode::Pclk);
+        let mut adc = Adc::new(p.ADC, hal::adc::AdcClockMode::Pclk);
 
         loop {
             led.toggle().ok();

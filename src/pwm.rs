@@ -1,7 +1,7 @@
 use cast::{u16, u32};
 use core::{marker::PhantomData, mem::MaybeUninit};
 
-use crate::rcc::Rcc;
+use crate::rcc::{BusTimerClock, Clocks, Enable, Reset};
 
 use crate::time::Hertz;
 use embedded_hal_02 as hal;
@@ -125,17 +125,17 @@ macro_rules! brk {
 // Timer with four output channels 16 Bit Timer
 #[cfg(any(feature = "py32f030", feature = "py32f003"))]
 macro_rules! pwm_4_channels {
-    ($($TIMX:ident: ($timX:ident, $timXen:ident, $timXrst:ident, $apbenr:ident, $apbrstr:ident),)+) => {
+    ($($TIMX:ident: $timX:ident,)+) => {
         $(
-            pub fn $timX<P, PINS, T>(tim: $TIMX, _pins: PINS, rcc: &mut Rcc, freq: T) -> PINS::Channels
+            pub fn $timX<P, PINS, T>(tim: $TIMX, _pins: PINS, clocks: &Clocks, freq: T) -> PINS::Channels
             where
                 PINS: Pins<$TIMX, P>,
                 T: Into<Hertz>,
             {
+                let rcc = unsafe { &(*RCC::ptr()) };
                 // enable and reset peripheral to a clean slate state
-                rcc.regs.$apbenr.modify(|_, w| w.$timXen().set_bit());
-                rcc.regs.$apbrstr.modify(|_, w| w.$timXrst().set_bit());
-                rcc.regs.$apbrstr.modify(|_, w| w.$timXrst().clear_bit());
+                $TIMX::enable(rcc);
+                $TIMX::reset(rcc);
 
                 if PINS::C1 {
                     tim.ccmr1_output()
@@ -154,13 +154,7 @@ macro_rules! pwm_4_channels {
                         .modify(|_, w| w.oc4pe().set_bit().oc4m().pwm_mode1() );
                 }
 
-                // If pclk is prescaled from hclk, the frequency fed into the timers is doubled
-                let tclk = if rcc.clocks.hclk().0 == rcc.clocks.pclk().0 {
-                    rcc.clocks.pclk().0
-                } else {
-                    rcc.clocks.pclk().0 * 2
-                };
-                let ticks = tclk / freq.into().0;
+                let ticks = $TIMX::timer_clock(clocks).0 / freq.into().0;
 
                 let psc = u16((ticks - 1) / (1 << 16)).unwrap();
                 tim.psc.write(|w| unsafe { w.psc().bits(psc) });
@@ -311,17 +305,17 @@ macro_rules! pwm_4_channels {
 
 // Timer with four output channels three with complements 16 Bit Timer
 macro_rules! pwm_4_channels_with_3_complementary_outputs {
-    ($($TIMX:ident: ($timX:ident, $timXen:ident, $timXrst:ident, $apbenr:ident, $apbrstr:ident),)+) => {
+    ($($TIMX:ident: $timX:ident,)+) => {
         $(
-            pub fn $timX<P, PINS, T>(tim: $TIMX, _pins: PINS, rcc: &mut Rcc, freq: T) -> PINS::Channels
+            pub fn $timX<P, PINS, T>(tim: $TIMX, _pins: PINS, clocks: &Clocks, freq: T) -> PINS::Channels
             where
                 PINS: Pins<$TIMX, P>,
                 T: Into<Hertz>,
             {
+                let rcc = unsafe { &(*RCC::ptr()) };
                 // enable and reset peripheral to a clean slate state
-                rcc.regs.$apbenr.modify(|_, w| w.$timXen().set_bit());
-                rcc.regs.$apbrstr.modify(|_, w| w.$timXrst().set_bit());
-                rcc.regs.$apbrstr.modify(|_, w| w.$timXrst().clear_bit());
+                $TIMX::enable(rcc);
+                $TIMX::reset(rcc);
 
                 if PINS::C1N | PINS::C1N | PINS::C1N {
                     tim.bdtr.modify(|_, w| w.ossr().set_bit());
@@ -343,13 +337,7 @@ macro_rules! pwm_4_channels_with_3_complementary_outputs {
                         .modify(|_, w| w.oc4pe().set_bit().oc4m().pwm_mode1() );
                 }
 
-                // If pclk is prescaled from hclk, the frequency fed into the timers is doubled
-                let tclk = if rcc.clocks.hclk().0 == rcc.clocks.pclk().0 {
-                    rcc.clocks.pclk().0
-                } else {
-                    rcc.clocks.pclk().0 * 2
-                };
-                let ticks = tclk / freq.into().0;
+                let ticks = $TIMX::timer_clock(clocks).0 / freq.into().0;
 
                 let psc = u16((ticks - 1) / (1 << 16)).unwrap();
                 tim.psc.write(|w| unsafe { w.psc().bits(psc) });
@@ -586,18 +574,19 @@ macro_rules! pwm_4_channels_with_3_complementary_outputs {
 }
 
 #[cfg(any(feature = "py32f030", feature = "py32f003"))]
+#[allow(unused_macros)]
 macro_rules! pwm_2_channels {
-    ($($TIMX:ident: ($timX:ident, $timXen:ident, $timXrst:ident, $apbenr:ident, $apbrstr:ident),)+) => {
+    ($($TIMX:ident: $timX:ident,)+) => {
         $(
-            pub fn $timX<P, PINS, T>(tim: $TIMX, _pins: PINS, rcc: &mut Rcc, freq: T) -> PINS::Channels
+            pub fn $timX<P, PINS, T>(tim: $TIMX, _pins: PINS, clocks: &Clocks, freq: T) -> PINS::Channels
             where
                 PINS: Pins<$TIMX, P>,
                 T: Into<Hertz>,
             {
+                let rcc = unsafe { &(*RCC::ptr()) };
                 // enable and reset peripheral to a clean slate state
-                rcc.regs.$apbenr.modify(|_, w| w.$timXen().set_bit());
-                rcc.regs.$apbrstr.modify(|_, w| w.$timXrst().set_bit());
-                rcc.regs.$apbrstr.modify(|_, w| w.$timXrst().clear_bit());
+                $TIMX::enable(rcc);
+                $TIMX::reset(rcc);
 
                 if PINS::C1 {
                     tim.ccmr1_output().modify(|_, w| w.oc1pe().set_bit().oc1m().bits(6));
@@ -606,13 +595,7 @@ macro_rules! pwm_2_channels {
                     tim.ccmr1_output().modify(|_, w| w.oc2pe().set_bit().oc2m().bits(6));
                 }
 
-                // If pclk is prescaled from hclk, the frequency fed into the timers is doubled
-                let tclk = if rcc.clocks.hclk().0 == rcc.clocks.pclk().0 {
-                    rcc.clocks.pclk().0
-                } else {
-                    rcc.clocks.pclk().0 * 2
-                };
-                let ticks = tclk / freq.into().0;
+                let ticks = $TIMX::timer_clock(clocks).0 / freq.into().0;
 
                 let psc = u16((ticks - 1) / (1 << 16)).unwrap();
                 tim.psc.write(|w| w.psc().bits(psc) );
@@ -702,29 +685,23 @@ macro_rules! pwm_2_channels {
 // General purpose timer with one output channel (TIM14)
 #[cfg(any(feature = "py32f030", feature = "py32f003", feature = "py32f002b"))]
 macro_rules! pwm_1_channel {
-    ($($TIMX:ident: ($timX:ident, $timXen:ident, $timXrst:ident, $apbenr:ident, $apbrstr:ident),)+) => {
+    ($($TIMX:ident: $timX:ident,)+) => {
         $(
-            pub fn $timX<P, PINS, T>(tim: $TIMX, _pins: PINS, rcc: &mut Rcc, freq: T) -> PINS::Channels
+            pub fn $timX<P, PINS, T>(tim: $TIMX, _pins: PINS, clocks: &Clocks, freq: T) -> PINS::Channels
             where
                 PINS: Pins<$TIMX, P>,
                 T: Into<Hertz>,
             {
+                let rcc = unsafe { &(*RCC::ptr()) };
                 // enable and reset peripheral to a clean slate state
-                rcc.regs.$apbenr.modify(|_, w| w.$timXen().set_bit());
-                rcc.regs.$apbrstr.modify(|_, w| w.$timXrst().set_bit());
-                rcc.regs.$apbrstr.modify(|_, w| w.$timXrst().clear_bit());
+                $TIMX::enable(rcc);
+                $TIMX::reset(rcc);
 
                 if PINS::C1 {
                     tim.ccmr1_output().modify(|_, w| w.oc1pe().set_bit().oc1m().bits(6));
                 }
 
-                // If pclk is prescaled from hclk, the frequency fed into the timers is doubled
-                let tclk = if rcc.clocks.hclk().0 == rcc.clocks.pclk().0 {
-                    rcc.clocks.pclk().0
-                } else {
-                    rcc.clocks.pclk().0 * 2
-                };
-                let ticks = tclk / freq.into().0;
+                let ticks = $TIMX::timer_clock(clocks).0 / freq.into().0;
 
                 let psc = u16((ticks - 1) / (1 << 16)).unwrap();
                 tim.psc.write(|w| unsafe { w.psc().bits(psc) });
@@ -783,29 +760,23 @@ macro_rules! pwm_1_channel {
 // General purpose timer with one output channel (TIM16/TIM17)
 #[cfg(any(feature = "py32f030", feature = "py32f003"))]
 macro_rules! pwm_1_channel_with_complementary_outputs {
-    ($($TIMX:ident: ($timX:ident, $timXen:ident, $timXrst:ident, $apbenr:ident, $apbrstr:ident),)+) => {
+    ($($TIMX:ident: $timX:ident,)+) => {
         $(
-            pub fn $timX<P, PINS, T>(tim: $TIMX, _pins: PINS, rcc: &mut Rcc, freq: T) -> PINS::Channels
+            pub fn $timX<P, PINS, T>(tim: $TIMX, _pins: PINS, clocks: &Clocks, freq: T) -> PINS::Channels
             where
                 PINS: Pins<$TIMX, P>,
                 T: Into<Hertz>,
             {
+                let rcc = unsafe { &(*RCC::ptr()) };
                 // enable and reset peripheral to a clean slate state
-                rcc.regs.$apbenr.modify(|_, w| w.$timXen().set_bit());
-                rcc.regs.$apbrstr.modify(|_, w| w.$timXrst().set_bit());
-                rcc.regs.$apbrstr.modify(|_, w| w.$timXrst().clear_bit());
+                $TIMX::enable(rcc);
+                $TIMX::reset(rcc);
 
                 if PINS::C1 {
                     tim.ccmr1_output().modify(|_, w| w.oc1pe().set_bit().oc1m().bits(6));
                 }
 
-                // If pclk is prescaled from hclk, the frequency fed into the timers is doubled
-                let tclk = if rcc.clocks.hclk().0 == rcc.clocks.pclk().0 {
-                    rcc.clocks.pclk().0
-                } else {
-                    rcc.clocks.pclk().0 * 2
-                };
-                let ticks = tclk / freq.into().0;
+                let ticks = $TIMX::timer_clock(clocks).0 / freq.into().0;
 
                 let psc = u16((ticks - 1) / (1 << 16)).unwrap();
                 tim.psc.write(|w| unsafe { w.psc().bits(psc) });
@@ -866,20 +837,20 @@ macro_rules! pwm_1_channel_with_complementary_outputs {
 
 use crate::pac::*;
 #[cfg(any(feature = "py32f030", feature = "py32f003"))]
-pwm_4_channels!(TIM3: (tim3, tim3en, tim3rst, apbenr1, apbrstr1),);
+pwm_4_channels!(TIM3: tim3,);
 
-pwm_4_channels_with_3_complementary_outputs!(TIM1: (tim1, tim1en, tim1rst, apbenr2, apbrstr2),);
+pwm_4_channels_with_3_complementary_outputs!(TIM1: tim1,);
 
 #[cfg(any(feature = "py32f030", feature = "py32f003", feature = "py32f002b"))]
-pwm_1_channel!(TIM14: (tim14, tim14en, tim14rst, apbenr2, apbrstr2),);
+pwm_1_channel!(TIM14: tim14,);
 
 // TIM16 is available for all devices but it can not be used for PWM for py32f002a
 #[cfg(any(feature = "py32f030", feature = "py32f003"))]
 pwm_1_channel_with_complementary_outputs!(
-    TIM16: (tim16, tim16en, tim16rst, apbenr2, apbrstr2),
+    TIM16: tim16,
 );
 
 #[cfg(any(feature = "py32f030", feature = "py32f003"))]
 pwm_1_channel_with_complementary_outputs!(
-    TIM17: (tim17, tim17en, tim17rst, apbenr2, apbrstr2),
+    TIM17: tim17,
 );

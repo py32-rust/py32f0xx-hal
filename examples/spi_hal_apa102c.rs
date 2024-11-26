@@ -23,21 +23,25 @@ fn main() -> ! {
 
     if let Some(p) = pac::Peripherals::take() {
         let mut flash = p.FLASH;
-        let mut rcc = p.RCC.configure().freeze(&mut flash);
+        let rcc = p.RCC.configure().freeze(&mut flash);
 
-        let gpioa = p.GPIOA.split(&mut rcc);
+        let gpioa = p.GPIOA.split();
 
         // Configure pins for SPI
-        let (sck, miso, mosi) = cortex_m::interrupt::free(move |cs| {
-            (
-                gpioa.pa5.into_alternate_af0(cs),
-                gpioa.pa6.into_alternate_af0(cs),
-                gpioa.pa7.into_alternate_af0(cs),
-            )
-        });
+        let (sck, miso, mosi) = (
+            gpioa.pa5.into_alternate_af0(),
+            gpioa.pa6.into_alternate_af0(),
+            gpioa.pa7.into_alternate_af0(),
+        );
 
         // Configure SPI with 100kHz rate
-        let mut spi = Spi::spi1(p.SPI1, (sck, miso, mosi), MODE, 100_000.hz(), &mut rcc);
+        let mut spi = Spi::new(
+            p.SPI1,
+            (Some(sck), Some(miso), Some(mosi)),
+            MODE,
+            100_000.hz(),
+            &rcc.clocks,
+        );
 
         // Cycle through colors on 16 chained APA102C LEDs
         loop {
