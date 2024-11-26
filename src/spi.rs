@@ -17,7 +17,7 @@
 //! use embedded_hal::spi::SpiBus;
 //!
 //! let mut p = pac::Peripherals::take().unwrap();
-//! let mut rcc = p.RCC.constrain().freeze(&mut p.FLASH);
+//! let rcc = p.RCC.constrain().freeze(&mut p.FLASH);
 //!
 //! let gpioa = p.GPIOA.split(&mut rcc);
 //!
@@ -27,7 +27,7 @@
 //! let mosi = gpioa.pa7.into_alternate_af0();
 //!
 //! // Configure SPI with 1MHz rate
-//! let mut spi = Spi::new(p.SPI1, (Some(sck), Some(miso), Some(mosi)), Mode {
+//! let mut spi = p.SPI1.spi((Some(sck), Some(miso), Some(mosi)), Mode {
 //!     polarity: Polarity::IdleHigh,
 //!     phase: Phase::CaptureOnSecondTransition,
 //! }, 1.mhz(), &rcc.clocks);

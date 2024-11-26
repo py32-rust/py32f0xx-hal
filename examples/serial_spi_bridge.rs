@@ -8,8 +8,6 @@ use py32f0xx_hal as hal;
 use crate::hal::{
     pac,
     prelude::*,
-    serial::Serial,
-    spi::Spi,
     spi::{Mode, Phase, Polarity},
 };
 
@@ -48,15 +46,14 @@ fn main() -> ! {
         );
 
         // Configure SPI with 1MHz rate
-        let mut spi = Spi::new(
-            p.SPI1,
+        let mut spi = p.SPI1.spi(
             (Some(sck), Some(miso), Some(mosi)),
             MODE,
-            1.mhz(),
+            1.mhz().into(),
             &rcc.clocks,
         );
 
-        let mut serial = Serial::new(p.USART1, (tx, rx), 115_200.bps(), &rcc.clocks);
+        let mut serial = p.USART1.serial((tx, rx), 115_200.bps(), &rcc.clocks);
 
         let mut datatx = [0];
         let datarx = [0];

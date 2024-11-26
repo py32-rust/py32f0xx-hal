@@ -5,7 +5,7 @@ use panic_halt as _;
 
 use py32f0xx_hal as hal;
 
-use crate::hal::{delay::Delay, pac, prelude::*, serial::Serial, time::Hertz, watchdog};
+use crate::hal::{delay::Delay, pac, prelude::*, time::Hertz, watchdog};
 use core::fmt::Write;
 use cortex_m::peripheral::Peripherals;
 use cortex_m_rt::entry;
@@ -32,8 +32,8 @@ fn main() -> ! {
         // Configure serial TX pin
         let tx = gpioa.pa2.into_alternate_af1();
 
-        // Obtain a serial peripheral with for unidirectional communication
-        let mut serial = Serial::new(p.USART1, (tx, ()), 115_200.bps(), &rcc.clocks);
+        // Obtain a serial peripheral with unidirectional communication
+        let mut serial = p.USART1.tx(tx, 115_200.bps(), &rcc.clocks);
 
         serial.write_str("RESET \r\n").ok();
 

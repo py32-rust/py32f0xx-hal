@@ -51,11 +51,10 @@ fn main() -> ! {
 
             // USART1 at PA2 (TX) and PA3(RX)
             let tx = gpioa.pa2.into_alternate_af1();
-            let rx = gpioa.pa3.into_alternate_af1();
+            let _rx = gpioa.pa3.into_alternate_af1(); // don't need, can be removed
 
-            // Initialiase UART
-            let (mut tx, _) =
-                hal::serial::Serial::new(dp.USART1, (tx, rx), 115_200.bps(), &rcc.clocks).split();
+            // Initialiase UART for transmission only
+            let mut tx = dp.USART1.tx(tx, 115_200.bps(), &rcc.clocks);
 
             // Initialise ADC
             let adc = hal::adc::Adc::new(dp.ADC, hal::adc::AdcClockMode::default());

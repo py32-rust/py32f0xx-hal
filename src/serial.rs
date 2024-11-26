@@ -3,7 +3,7 @@
 //! This only implements the usual asynchronous bidirectional 8-bit transfers.
 //!
 //! It's possible to use a read-only/write-only serial implementation with
-//! `usartXrx`/`usartXtx`.
+//! `rx`/`tx`.
 //!
 //! # Examples
 //! Echo
@@ -25,7 +25,7 @@
 //! let rx = gpiob.pb7.into_alternate_af0();
 //!
 //! // Create an interface struct for USART1 with 115200 Baud
-//! let mut serial = Serial::new(p.USART1, (tx, rx), 115_200.bps(), &rcc.clocks);
+//! let mut serial = p.USART1.serial((tx, rx), 115_200.bps(), &rcc.clocks);
 //!
 //! loop {
 //!     let received = block!(serial.read()).unwrap();
@@ -49,7 +49,7 @@
 //!
 //! let tx = gpiob.pb6.into_alternate_af0();
 //!
-//! let mut serial = Serial::new(p.USART1, tx, 115_200.bps(), &rcc.clocks);
+//! let mut serial = p.USART1.tx(tx, 115_200.bps(), &rcc.clocks);
 //!
 //! loop {
 //!     serial.write_str("Hello World!\r\n");

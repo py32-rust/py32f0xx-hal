@@ -8,7 +8,6 @@ use py32f0xx_hal as hal;
 use crate::hal::{
     pac::{interrupt, Interrupt, Peripherals, TIM16},
     prelude::*,
-    serial::Serial,
     timers::{Event, Timer},
 };
 use core::cell::RefCell;
@@ -84,7 +83,7 @@ fn main() -> ! {
             cortex_m::peripheral::NVIC::unpend(Interrupt::TIM16);
 
             // Set up our serial port
-            Serial::new(p.USART1, (tx, rx), 115_200.bps(), &rcc.clocks)
+            p.USART1.serial((tx, rx), 115_200.bps(), &rcc.clocks)
         });
 
         // Print a welcome message

@@ -11,7 +11,6 @@ use crate::hal::{
     pac,
     prelude::*,
     rcc::{HSIFreq, MCODiv, MCOSrc},
-    serial::Serial,
 };
 
 use cortex_m_rt::entry;
@@ -37,7 +36,7 @@ fn main() -> ! {
             gpioa.pa3.into_alternate_af1(),
         );
 
-        let mut serial = Serial::new(p.USART1, (tx, rx), 115_200.bps(), &rcc.clocks);
+        let mut serial = p.USART1.serial((tx, rx), 115_200.bps(), &rcc.clocks);
         serial.write_str("Input any key:\n").ok();
 
         loop {

@@ -10,6 +10,6 @@ pub use crate::dma::ReadWriteDma as _py32f0xx_hal_dma_ReadWriteDma;
 pub use crate::dma::WriteDma as _py32f0xx_hal_dma_WriteDma;
 pub use crate::gpio::GpioExt as _py32f0xx_hal_gpio_GpioExt;
 pub use crate::rcc::RccExt as _py32f0xx_hal_rcc_RccExt;
-pub use crate::serial::SerialExt as _;
-pub use crate::spi::SpiExt as _;
+pub use crate::serial::SerialExt as _py32f0xx_hal_serial_SerialExt;
+pub use crate::spi::SpiExt as _py32f0xx_hal_spi_SpiExt;
 pub use crate::time::U32Ext as _py32f0xx_hal_time_U32Ext;

@@ -8,7 +8,6 @@ use py32f0xx_hal as hal;
 use crate::hal::{
     pac,
     prelude::*,
-    spi::Spi,
     spi::{Mode, Phase, Polarity},
 };
 
@@ -35,8 +34,7 @@ fn main() -> ! {
         );
 
         // Configure SPI with 100kHz rate
-        let mut spi = Spi::new(
-            p.SPI1,
+        let mut spi = p.SPI1.spi(
             (Some(sck), Some(miso), Some(mosi)),
             MODE,
             100_000.hz(),

@@ -10,7 +10,6 @@ use crate::hal::{
     delay::Delay,
     pac,
     prelude::*,
-    spi::Spi,
     spi::{Mode, Phase, Polarity},
     time::Hertz,
     timers::Timer,
@@ -60,11 +59,10 @@ fn main() -> ! {
         rst.set_low().ok();
 
         // Configure SPI with 1MHz rate
-        let spi = Spi::new(
-            p.SPI1,
+        let spi = p.SPI1.spi(
             (Some(sck), Some(miso), Some(mosi)),
             MODE,
-            1.mhz(),
+            1.mhz().into(),
             &rcc.clocks,
         );
         let itf = SpiInterface::new(spi).with_nss(nss).with_delay(|| {
