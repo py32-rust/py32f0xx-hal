@@ -304,7 +304,7 @@ gpio_trait!(gpiof);
 gpio_trait!(gpioc);
 
 macro_rules! gpio {
-    ([$($GPIOX:ident, $gpiox:ident, $PXx:ident, $PCH:literal, $gate:meta => [
+    ([$($GPIOX:ident, $gpiox:ident, $PCH:literal, $gate:meta => [
         $($PXi:ident: ($pxi:ident, $i:expr, $MODE:ty),)+
     ]),+]) => {
         $(
@@ -781,7 +781,7 @@ macro_rules! gpio {
 
 gpio!([
     // BUGBUG: py32f002b only has 8 pins?
-    GPIOA, gpioa, PA, b'A', any(
+    GPIOA, gpioa, b'A', any(
         feature = "device-selected"
     ) => [
         PA0: (pa0, 0, Input<Floating>),
@@ -801,7 +801,7 @@ gpio!([
         PA14: (pa14, 14, Input<Floating>),
         PA15: (pa15, 15, Input<Floating>),
     ],
-    GPIOB, gpiob, PB, b'B', any(
+    GPIOB, gpiob, b'B', any(
         feature = "device-selected"
     ) => [
         PB0: (pb0, 0, Input<Floating>),
@@ -814,13 +814,13 @@ gpio!([
         PB7: (pb7, 7, Input<Floating>),
         PB8: (pb8, 8, Input<Floating>),
     ],
-    GPIOC, gpioc, PC, b'C', any(
+    GPIOC, gpioc, b'C', any(
         feature = "py32f002b"
     ) => [
         PC0: (pf0, 0, Input<Floating>),
         PC1: (pf1, 1, Input<Floating>),
     ],
-    GPIOF, gpiof, PF, b'F', any(
+    GPIOF, gpiof, b'F', any(
         feature = "py32f030",
         feature = "py32f003",
         feature = "py32f002a"

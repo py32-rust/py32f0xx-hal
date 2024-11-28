@@ -94,12 +94,12 @@ fn SysTick() {
             writeln!(shared.tx, "Temperature {}.{}C\r", t / 100, t % 100).ok();
             info!("Temperature {}.{}C\r", t / 100, t % 100);
 
-            // Read volatage reference data from internal sensor using ADC
+            // Read voltage reference data from internal sensor using ADC
             let t = hal::adc::VRef::read_vdda(&mut shared.adc);
             writeln!(shared.tx, "Vdda {}mV\r", t).ok();
             info!("Vdda {}mV\r", t);
 
-            // Read volatage data from external pin using ADC
+            // Read voltage data from external pin using ADC
             let v0 = hal::adc::Adc::read_abs_mv(&mut shared.adc, &mut shared.ain0);
             let v1 = hal::adc::Adc::read_abs_mv(&mut shared.adc, &mut shared.ain1);
             writeln!(shared.tx, "Ain0 {}mV Ain1 {}mV\r", v0, v1).ok();

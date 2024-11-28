@@ -424,10 +424,22 @@ impl<BUFFER, PAYLOAD, MODE, DMA: DmaExt, const C: u8>
 where
     RxDma<PAYLOAD, Ch<DMA, C>>: TransferPayload,
 {
+    /// Is the Transfer completed
     pub fn is_done(&self) -> bool {
         !self.payload.channel.in_progress()
     }
 
+    /// Listen for Events on DMA channel
+    pub fn listen(&mut self, evt: Event) {
+        self.payload.channel.listen(evt);
+    }
+
+    /// Unlisten for Events on DMA channel
+    pub fn unlisten(&mut self, evt: Event) {
+        self.payload.channel.unlisten(evt);
+    }
+
+    /// Wait until Transfer is completed, blocking
     pub fn wait(mut self) -> (BUFFER, RxDma<PAYLOAD, Ch<DMA, C>>) {
         while !self.is_done() {}
 
@@ -465,10 +477,22 @@ impl<BUFFER, PAYLOAD, MODE, DMA: DmaExt, const C: u8>
 where
     TxDma<PAYLOAD, Ch<DMA, C>>: TransferPayload,
 {
+    /// Is the Transfer completed
     pub fn is_done(&self) -> bool {
         !self.payload.channel.in_progress()
     }
 
+    /// Listen for Events on DMA channel
+    pub fn listen(&mut self, evt: Event) {
+        self.payload.channel.listen(evt);
+    }
+
+    /// Unlisten for Events on DMA channel
+    pub fn unlisten(&mut self, evt: Event) {
+        self.payload.channel.unlisten(evt);
+    }
+
+    /// Wait until Transfer is completed, blocking
     pub fn wait(mut self) -> (BUFFER, TxDma<PAYLOAD, Ch<DMA, C>>) {
         while !self.is_done() {}
 
@@ -506,10 +530,22 @@ impl<BUFFER, PAYLOAD, MODE, DMA: DmaExt, const RXC: u8, const TXC: u8>
 where
     RxTxDma<PAYLOAD, Ch<DMA, RXC>, Ch<DMA, TXC>>: TransferPayload,
 {
+    /// Is the Transfer completed
     pub fn is_done(&self) -> bool {
         !self.payload.rxchannel.in_progress()
     }
 
+    /// Listen for Events on DMA rx channel
+    pub fn listen_rx(&mut self, evt: Event) {
+        self.payload.rxchannel.listen(evt);
+    }
+
+    /// Unlisten for Events on DMA rx channel
+    pub fn unlisten_rx(&mut self, evt: Event) {
+        self.payload.rxchannel.unlisten(evt);
+    }
+
+    /// Wait until Transfer is completed, blocking
     pub fn wait(mut self) -> (BUFFER, RxTxDma<PAYLOAD, Ch<DMA, RXC>, Ch<DMA, TXC>>) {
         while !self.is_done() {}
 
