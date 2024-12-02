@@ -17,7 +17,6 @@ use crate::hal::{
 use cortex_m_rt::entry;
 use defmt::{error, info};
 use embedded_hal_02::blocking::delay::DelayMs;
-use embedded_hal_02::digital::v2::OutputPin;
 use embedded_hal_02::timer::CountDown;
 
 use mfrc522::comm::eh02::spi::SpiInterface;
@@ -53,10 +52,10 @@ fn main() -> ! {
             gpioa.pa6.into_alternate_af0(),
             gpioa.pa7.into_alternate_af0(),
             // Aux pins
-            gpioa.pa4.into_push_pull_output().downgrade(),
-            gpioa.pa1.into_push_pull_output().downgrade(),
+            gpioa.pa4.into_push_pull_output(),
+            gpioa.pa1.into_push_pull_output(),
         );
-        rst.set_low().ok();
+        rst.set_low();
 
         // Configure SPI with 1MHz rate
         let spi = p.SPI1.spi(
@@ -68,7 +67,7 @@ fn main() -> ! {
         let itf = SpiInterface::new(spi).with_nss(nss).with_delay(|| {
             delay.delay_ms(1_u16);
         });
-        rst.set_high().ok();
+        rst.set_high();
 
         let mut mfrc522 = Mfrc522::new(itf).init().unwrap();
 

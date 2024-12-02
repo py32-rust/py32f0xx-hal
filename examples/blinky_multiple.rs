@@ -9,7 +9,6 @@ use crate::hal::{delay::Delay, pac, prelude::*};
 
 use cortex_m::peripheral::Peripherals;
 use cortex_m_rt::entry;
-use embedded_hal::digital::OutputPin;
 use embedded_hal_02::blocking::delay::DelayMs;
 
 #[entry]
@@ -29,15 +28,15 @@ fn main() -> ! {
         let mut delay = Delay::new(cp.SYST, &rcc);
 
         // Store them together after erasing the type
-        let mut leds = [led1.downgrade(), led2.downgrade()];
+        let mut leds = [led1.erase(), led2.erase()];
         loop {
             for l in &mut leds {
-                l.set_high().ok();
+                l.set_high();
             }
             delay.delay_ms(1_000_u16);
 
             for l in &mut leds {
-                l.set_low().ok();
+                l.set_low();
             }
             delay.delay_ms(1_000_u16);
         }

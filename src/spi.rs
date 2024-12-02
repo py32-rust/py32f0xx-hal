@@ -43,8 +43,9 @@
 use core::marker::PhantomData;
 use core::ops::{Deref, DerefMut};
 use core::ptr;
+#[cfg(feature = "with-dma")]
 use core::sync::atomic::{self, Ordering};
-
+#[cfg(feature = "with-dma")]
 use embedded_dma::{ReadBuffer, WriteBuffer};
 
 use crate::pac::{self, RCC};

@@ -9,7 +9,6 @@ use crate::hal::{delay::Delay, pac, prelude::*};
 use cortex_m::peripheral::Peripherals;
 use cortex_m_rt::entry;
 use embedded_hal_02::blocking::delay::DelayMs;
-use embedded_hal_02::digital::v2::ToggleableOutputPin;
 
 #[entry]
 fn main() -> ! {
@@ -19,13 +18,13 @@ fn main() -> ! {
         let gpioa = p.GPIOA.split();
 
         // (Re-)configure PA5 as output
-        let mut led = gpioa.pa5.into_push_pull_output().downgrade();
+        let mut led = gpioa.pa5.into_push_pull_output();
 
         // Get delay provider
         let mut delay = Delay::new(cp.SYST, &rcc);
 
         loop {
-            led.toggle().ok();
+            led.toggle();
             delay.delay_ms(1_000_u16);
         }
     }

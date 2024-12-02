@@ -42,6 +42,7 @@ bus! {
     GPIOA => (APB, iopenr, ioprstr, 0),
     GPIOB => (APB, iopenr, ioprstr, 1),
     I2C => (APB, apbenr1, apbrstr1, 21),
+    LPTIM => (APB, apbenr1, apbrstr1, 31),
     PWR => (APB, apbenr1, apbrstr1, 28),
     SPI1 => (APB, apbenr2, apbrstr2, 12),
     SYSCFG => (APB, apbenr2, apbrstr2, 0),
@@ -64,12 +65,11 @@ bus! {
 #[cfg(any(feature = "py32f002a", feature = "py32f003", feature = "py32f030"))]
 bus! {
     GPIOF => (APB, iopenr, ioprstr, 5),
-    LPTIM => (APB, apbenr1, apbrstr1, 31),
 }
 
 #[cfg(any(feature = "py32f002b"))]
 bus! {
-    LPTIM1 => (APB, apbenr1, apbrstr1, 31),
+    GPIOC => (APB, iopenr, ioprstr, 2),
 }
 
 #[cfg(any(feature = "py32f030"))]

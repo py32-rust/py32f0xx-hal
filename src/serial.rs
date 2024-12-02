@@ -58,8 +58,6 @@
 
 use core::marker::PhantomData;
 use core::ops::Deref;
-use core::sync::atomic::{self, Ordering};
-use embedded_dma::{ReadBuffer, WriteBuffer};
 
 #[cfg(feature = "with-dma")]
 use crate::dma::{
@@ -71,6 +69,10 @@ use crate::gpio::{Alternate, AF1};
 use crate::pac::{self, RCC};
 use crate::rcc::{BusClock, Clocks, Enable, Reset};
 use crate::time::{Bps, U32Ext};
+#[cfg(feature = "with-dma")]
+use core::sync::atomic::{self, Ordering};
+#[cfg(feature = "with-dma")]
+use embedded_dma::{ReadBuffer, WriteBuffer};
 
 #[cfg(any(feature = "py32f030", feature = "py32f003", feature = "py32f002a"))]
 use crate::gpio::{gpiof::*, AF0, AF8};
@@ -793,6 +795,7 @@ pub type Rx2 = Rx<pac::USART2>;
 #[cfg(any(feature = "py32f003", feature = "py32f030",))]
 pub type Tx2 = Tx<pac::USART2>;
 
+#[cfg(feature = "with-dma")]
 macro_rules! serialdmarx {
     ($USARTX:ty: ($dmaX:ty, $dmamux:expr, {
             $($rxdma:ident: $ch:literal,)+
@@ -931,6 +934,7 @@ serialdmarx! {
     }),
 }
 
+#[cfg(feature = "with-dma")]
 macro_rules! serialdmatx {
     ($USARTX:ty: ($dmaX:ty, $dmamux:expr, {
             $($txdma:ident: $ch:literal,)+

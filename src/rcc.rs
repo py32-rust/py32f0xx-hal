@@ -5,7 +5,7 @@ use crate::pac::rcc::{
     icscr::HSI_FS_A,
 };
 
-use crate::pac::{PWR, RCC};
+use crate::pac::{DBG, PWR, RCC};
 use crate::time::Hertz;
 
 mod enable;
@@ -55,6 +55,11 @@ impl APB {
     pub fn set_pwren() {
         let rcc = unsafe { &*RCC::ptr() };
         PWR::enable(rcc);
+    }
+    /// Disable debug clock (DBGEN) bit in RCC_APB1ENR
+    pub fn disable_dbg() {
+        let rcc = unsafe { &*RCC::ptr() };
+        DBG::disable(rcc);
     }
 }
 

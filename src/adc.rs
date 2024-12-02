@@ -501,7 +501,8 @@ impl Adc {
         }
         while self.rb.cr.read().aden().is_enabled() {}
 
-        #[cfg(any(feature = "py32f030", feature = "py32f003"))]
+        // get and save DMAEN and DMACFG
+        #[cfg(feature = "with-dma")]
         let (dmacfg, dmaen) = {
             let dmacfg = self.rb.cfgr1.read().dmacfg().bit();
             let dmaen = self.rb.cfgr1.read().dmaen().is_enabled();
@@ -510,7 +511,8 @@ impl Adc {
         };
 
         /* Clear DMAEN */
-        // self.rb.cfgr1.modify(|_, w| w.dmaen().disabled());
+        #[cfg(feature = "with-dma")]
+        self.rb.cfgr1.modify(|_, w| w.dmaen().disabled());
 
         /* Start calibration by setting ADCAL */
         self.rb.cr.modify(|_, w| w.adcal().start_calibration());
@@ -518,7 +520,8 @@ impl Adc {
         /* Wait until calibration is finished and ADCAL = 0 */
         while self.rb.cr.read().adcal().is_calibrating() {}
 
-        #[cfg(any(feature = "py32f030", feature = "py32f003"))]
+        // restore DMAEN and DMACFG to original values
+        #[cfg(feature = "with-dma")]
         self.rb
             .cfgr1
             .modify(|_, w| w.dmacfg().bit(dmacfg).dmaen().bit(dmaen));

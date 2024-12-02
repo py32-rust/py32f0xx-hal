@@ -6,7 +6,7 @@ use panic_halt as _;
 use py32f0xx_hal as hal;
 
 use crate::hal::{
-    gpio::{Output, Pin, PushPull},
+    gpio::{gpioa, Output, PushPull},
     pac::{interrupt, Interrupt, Peripherals, TIM16},
     prelude::*,
     time::Hertz,
@@ -16,11 +16,10 @@ use crate::hal::{
 use core::cell::RefCell;
 use cortex_m::{interrupt::Mutex, peripheral::Peripherals as c_m_Peripherals};
 use cortex_m_rt::entry;
-use embedded_hal_02::digital::v2::ToggleableOutputPin;
 use embedded_hal_02::timer::CountDown;
 
 // A type definition for the GPIO pin to be used for our LED
-type LEDPIN = Pin<Output<PushPull>>;
+type LEDPIN = gpioa::PA5<Output<PushPull>>;
 
 // Make LED pin globally available
 static GLED: Mutex<RefCell<Option<LEDPIN>>> = Mutex::new(RefCell::new(None));
@@ -49,7 +48,7 @@ fn TIM16() {
         })
     });
 
-    led.toggle().ok();
+    led.toggle();
     int.wait().ok();
 }
 
@@ -67,7 +66,7 @@ fn main() -> ! {
             let gpioa = p.GPIOA.split();
 
             // (Re-)configure PA5 as output
-            let led = gpioa.pa5.into_push_pull_output().downgrade();
+            let led = gpioa.pa5.into_push_pull_output();
 
             // Move the pin into our global storage
             *GLED.borrow(cs).borrow_mut() = Some(led);

@@ -11,7 +11,6 @@ use cortex_m::peripheral::Peripherals;
 use cortex_m_rt::entry;
 use embedded_hal_02::adc::OneShot;
 use embedded_hal_02::blocking::delay::DelayMs;
-use embedded_hal_02::digital::v2::ToggleableOutputPin;
 
 #[entry]
 fn main() -> ! {
@@ -21,7 +20,7 @@ fn main() -> ! {
         let gpioa = p.GPIOA.split();
 
         // (Re-)configure PA5 as output
-        let mut led = gpioa.pa5.into_push_pull_output().downgrade();
+        let mut led = gpioa.pa5.into_push_pull_output();
         // (Re-)configure PA0 as analog input
         let mut an_in = gpioa.pa0.into_analog();
 
@@ -32,7 +31,7 @@ fn main() -> ! {
         let mut adc = Adc::new(p.ADC, hal::adc::AdcClockMode::Pclk);
 
         loop {
-            led.toggle().ok();
+            led.toggle();
 
             let time: u16 = if let Ok(val) = adc.read(&mut an_in) as Result<u16, _> {
                 /* shift the value right by 3, same as divide by 8, reduces

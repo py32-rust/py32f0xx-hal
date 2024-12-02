@@ -21,7 +21,8 @@ use py32f0xx_hal::{pac, prelude::*};
 // For the sake of minimalism, we do not use RTIC here, which would be the better way.
 static mut LED: MaybeUninit<py32f0xx_hal::gpio::gpioa::PA12<Output<PushPull>>> =
     MaybeUninit::uninit();
-static mut INT_PIN: MaybeUninit<py32f0xx_hal::gpio::Pin<Input<Floating>>> = MaybeUninit::uninit();
+static mut INT_PIN: MaybeUninit<py32f0xx_hal::gpio::gpioa::PA11<Input<Floating>>> =
+    MaybeUninit::uninit();
 
 #[interrupt]
 fn EXTI4_15() {
@@ -51,7 +52,7 @@ fn main() -> ! {
         *led = gpioa.pa12.into_push_pull_output();
 
         let int_pin = unsafe { &mut *INT_PIN.as_mut_ptr() };
-        *int_pin = gpioa.pa11.into_floating_input().downgrade();
+        *int_pin = gpioa.pa11.into_floating_input();
         int_pin.make_interrupt_source(&mut p.EXTI);
         int_pin.trigger_on_edge(&mut p.EXTI, Edge::RisingFalling);
         int_pin.enable_interrupt(&mut p.EXTI);
