@@ -22,8 +22,8 @@ fn main() -> ! {
         let rcc = p
             .RCC
             .configure()
-            .sysclk(24.mhz())
-            .pclk(24.mhz())
+            .sysclk(24.MHz())
+            .pclk(24.MHz())
             .freeze(&mut flash);
 
         let gpioa = p.GPIOA.split();
@@ -33,7 +33,7 @@ fn main() -> ! {
         let sda = gpioa.pa2.into_alternate_af12();
 
         // Configure I2C with 100kHz rate
-        let mut i2c = I2c::i2c(p.I2C, (scl, sda), 100.khz(), &rcc.clocks);
+        let mut i2c = I2c::i2c(p.I2C, (scl, sda), 100.kHz(), &rcc.clocks);
 
         let mut devices = 0;
         // I2C addresses are 7-bit wide, covering the 0-127 range

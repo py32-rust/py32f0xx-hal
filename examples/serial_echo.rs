@@ -24,7 +24,7 @@ fn main() -> ! {
             .RCC
             .configure()
             .hsi(HSIFreq::Freq24mhz)
-            .sysclk(24.mhz())
+            .sysclk(24.MHz())
             .freeze(&mut flash);
 
         rcc.configure_mco(MCOSrc::Sysclk, MCODiv::NotDivided);

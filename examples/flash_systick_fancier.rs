@@ -23,7 +23,7 @@ static GPIO: Mutex<RefCell<Option<LEDPIN>>> = Mutex::new(RefCell::new(None));
 fn main() -> ! {
     if let (Some(mut p), Some(cp)) = (pac::Peripherals::take(), Peripherals::take()) {
         cortex_m::interrupt::free(move |cs| {
-            let _rcc = p.RCC.configure().sysclk(24.mhz()).freeze(&mut p.FLASH);
+            let _rcc = p.RCC.configure().sysclk(24.MHz()).freeze(&mut p.FLASH);
 
             // Get access to individual pins in the GPIO port
             let gpioa = p.GPIOA.split();

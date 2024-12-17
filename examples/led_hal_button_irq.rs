@@ -6,10 +6,10 @@ use panic_halt as _;
 use py32f0xx_hal as hal;
 
 use crate::hal::{
-    delay::Delay,
     gpio::*,
     pac::{interrupt, Interrupt, Peripherals, EXTI},
     prelude::*,
+    timer::SysDelay,
 };
 
 use cortex_m::{interrupt::Mutex, peripheral::Peripherals as c_m_Peripherals};
@@ -22,7 +22,7 @@ use embedded_hal_02::blocking::delay::DelayMs;
 static LED: Mutex<RefCell<Option<gpioa::PA5<Output<PushPull>>>>> = Mutex::new(RefCell::new(None));
 
 // Make our delay provider globally available
-static DELAY: Mutex<RefCell<Option<Delay>>> = Mutex::new(RefCell::new(None));
+static DELAY: Mutex<RefCell<Option<SysDelay>>> = Mutex::new(RefCell::new(None));
 
 // Make external interrupt registers globally available
 static INT: Mutex<RefCell<Option<EXTI>>> = Mutex::new(RefCell::new(None));
@@ -36,7 +36,7 @@ fn main() -> ! {
             rcc.apbenr2.modify(|_, w| w.syscfgen().set_bit());
 
             let mut flash = p.FLASH;
-            let rcc = rcc.configure().sysclk(8.mhz()).freeze(&mut flash);
+            let rcc = rcc.configure().sysclk(8.MHz()).freeze(&mut flash);
 
             let gpioa = p.GPIOA.split();
             let gpiob = p.GPIOB.split();
@@ -52,7 +52,7 @@ fn main() -> ! {
             led.set_low();
 
             // Initialise delay provider
-            let delay = Delay::new(cp.SYST, &rcc);
+            let delay = cp.SYST.delay(&rcc.clocks);
 
             // Enable external interrupt for PB2
             exti.exticr1.modify(|_, w| w.exti2().pb());

@@ -5,7 +5,7 @@ use panic_halt as _;
 
 use py32f0xx_hal as hal;
 
-use crate::hal::{adc::Adc, delay::Delay, pac, prelude::*};
+use crate::hal::{adc::Adc, pac, prelude::*};
 
 use cortex_m::peripheral::Peripherals;
 use cortex_m_rt::entry;
@@ -15,7 +15,7 @@ use embedded_hal_02::blocking::delay::DelayMs;
 #[entry]
 fn main() -> ! {
     if let (Some(mut p), Some(cp)) = (pac::Peripherals::take(), Peripherals::take()) {
-        let rcc = p.RCC.configure().sysclk(8.mhz()).freeze(&mut p.FLASH);
+        let rcc = p.RCC.configure().sysclk(8.MHz()).freeze(&mut p.FLASH);
 
         let gpioa = p.GPIOA.split();
 
@@ -25,7 +25,7 @@ fn main() -> ! {
         let mut an_in = gpioa.pa0.into_analog();
 
         // Get delay provider
-        let mut delay = Delay::new(cp.SYST, &rcc);
+        let mut delay = cp.SYST.delay(&rcc.clocks);
 
         // Get access to the ADC
         let mut adc = Adc::new(p.ADC, hal::adc::AdcClockMode::Pclk);

@@ -6,7 +6,7 @@ use crate::{
     gpio::*,
     pac,
     rcc::{Clocks, Enable, Reset},
-    time::{Hertz, KiloHertz, U32Ext},
+    time::{kHz, Hertz, KiloHertz},
 };
 
 /// I2C abstraction
@@ -76,6 +76,7 @@ i2c_pins! {
 }
 
 #[derive(Debug)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum Error {
     OVERRUN,
     NACK,
@@ -133,24 +134,24 @@ where
         // Make sure the I2C unit is disabled so we can configure it
         self.i2c.cr1.modify(|_, w| w.pe().clear_bit());
 
-        let f = freq.0 / 1_000_000;
+        let f = freq.raw() / 1_000_000;
 
         self.i2c
             .cr2
             .write(|w| unsafe { w.freq().bits(f.clamp(4, 48) as u8) });
 
         // Normal I2C speeds use a different scaling than fast mode below
-        let (f_s, ccr) = if speed <= 100_u32.khz() {
+        let (f_s, ccr) = if speed <= kHz(100) {
             // This is a normal I2C mode
-            (false, freq.0 / (speed.0 * 2))
+            (false, freq.raw() / (speed.raw() * 2))
         } else {
             // This is a fast I2C mode
             (
                 true,
                 if self.i2c.ccr.read().duty().bit_is_set() {
-                    freq.0 / (speed.0 * 25)
+                    freq.raw() / (speed.raw() * 25)
                 } else {
-                    freq.0 / (speed.0 * 3)
+                    freq.raw() / (speed.raw() * 3)
                 },
             )
         };

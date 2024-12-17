@@ -12,7 +12,7 @@ use cortex_m_rt::entry;
 #[entry]
 fn main() -> ! {
     if let Some(mut p) = pac::Peripherals::take() {
-        let _rcc = p.RCC.configure().sysclk(8.mhz()).freeze(&mut p.FLASH);
+        let _rcc = p.RCC.configure().sysclk(8.MHz()).freeze(&mut p.FLASH);
 
         let gpioa = p.GPIOA.split();
 

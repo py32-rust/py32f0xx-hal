@@ -16,13 +16,13 @@ pub trait Pins<TIM, P> {
     const C4: bool = false;
     type Channels;
 }
-use crate::timers::PinC1;
-use crate::timers::PinC1N;
-use crate::timers::PinC2;
-use crate::timers::PinC2N;
-use crate::timers::PinC3;
-use crate::timers::PinC3N;
-use crate::timers::PinC4;
+use crate::timer::PinC1;
+use crate::timer::PinC1N;
+use crate::timer::PinC2;
+use crate::timer::PinC2N;
+use crate::timer::PinC3;
+use crate::timer::PinC3N;
+use crate::timer::PinC4;
 
 pub struct C1;
 pub struct C1N;
@@ -154,7 +154,7 @@ macro_rules! pwm_4_channels {
                         .modify(|_, w| w.oc4pe().set_bit().oc4m().pwm_mode1() );
                 }
 
-                let ticks = $TIMX::timer_clock(clocks).0 / freq.into().0;
+                let ticks = $TIMX::timer_clock(clocks).raw() / freq.into().raw();
 
                 let psc = u16((ticks - 1) / (1 << 16)).unwrap();
                 tim.psc.write(|w| unsafe { w.psc().bits(psc) });
@@ -337,7 +337,7 @@ macro_rules! pwm_4_channels_with_3_complementary_outputs {
                         .modify(|_, w| w.oc4pe().set_bit().oc4m().pwm_mode1() );
                 }
 
-                let ticks = $TIMX::timer_clock(clocks).0 / freq.into().0;
+                let ticks = $TIMX::timer_clock(clocks).raw() / freq.into().raw();
 
                 let psc = u16((ticks - 1) / (1 << 16)).unwrap();
                 tim.psc.write(|w| unsafe { w.psc().bits(psc) });
@@ -701,7 +701,7 @@ macro_rules! pwm_1_channel {
                     tim.ccmr1_output().modify(|_, w| w.oc1pe().set_bit().oc1m().bits(6));
                 }
 
-                let ticks = $TIMX::timer_clock(clocks).0 / freq.into().0;
+                let ticks = $TIMX::timer_clock(clocks).raw() / freq.into().raw();
 
                 let psc = u16((ticks - 1) / (1 << 16)).unwrap();
                 tim.psc.write(|w| unsafe { w.psc().bits(psc) });
@@ -776,7 +776,7 @@ macro_rules! pwm_1_channel_with_complementary_outputs {
                     tim.ccmr1_output().modify(|_, w| w.oc1pe().set_bit().oc1m().bits(6));
                 }
 
-                let ticks = $TIMX::timer_clock(clocks).0 / freq.into().0;
+                let ticks = $TIMX::timer_clock(clocks).raw() / freq.into().raw();
 
                 let psc = u16((ticks - 1) / (1 << 16)).unwrap();
                 tim.psc.write(|w| unsafe { w.psc().bits(psc) });

@@ -80,7 +80,7 @@ pub trait PinExt {
 
     /// Return port id
     ///
-    /// id is a character, such as 'A' for porta, 'B' for portb
+    /// id is ascii byte, 'A' for porta, 'B' for portb
     fn port_id(&self) -> u8;
 }
 
@@ -253,21 +253,26 @@ where
     fn make_interrupt_source(&mut self, exti: &mut pac::EXTI) {
         let pin_number = self.pin_id();
         let offset = 8 * (pin_number % 4);
+        // for pins 0-3, mux selects ports a=0, b=1, or f=2
+        // for py32f002b, a=0, b=1, c=2
         let port = match self.port_id() {
             b'A' => 0,
             b'B' => 1,
             b'C' | b'F' => 2,
             _ => unreachable!(),
         };
+        // note(Safety) While the match below has invalid combinations for some parts, it cannot
+        // actually hit those, because the match works off the pin and port number which is embedded
+        // in the pin as states, so they can't have an invalid combination
+        // For example there only 2 pins on port C of the py32f002b
         match pin_number {
-            // for pins 0-3, mux selects ports a=0, b=1, or f=2
-            // for py32f002b, a=0, b=1, c=2
+            // pins 0-3, mux selects port as above
             0..=3 => {
                 exti.exticr1.modify(|r, w| unsafe {
                     w.bits((r.bits() & !(0xf << offset)) | (port << offset))
                 });
             }
-            // pin 4 is same as pins 0-3
+            // pin 4 mux selects port
             4 => {
                 exti.exticr2.modify(|r, w| unsafe {
                     w.bits((r.bits() & !(0xf << offset)) | (port << offset))
@@ -278,13 +283,13 @@ where
                 exti.exticr2
                     .modify(|r, w| unsafe { w.bits(r.bits() | (port << offset)) });
             }
-            // BUGBUG: py32f002a only has 8 pins? pin 8, mux selects ports a=0, b=1
+            // BUGBUG: py32f002a only has 15 port A pins? pin 8, mux selects ports a=0, b=1
             #[cfg(any(feature = "py32f030", feature = "py32f003", feature = "py32f002a"))]
             8 => {
                 exti.exticr3
                     .modify(|r, w| unsafe { w.bits(r.bits() | (port << offset)) });
             }
-            // BUGBUG: py32f002a only has 8 pins? pin 9-15, no mux
+            // BUGBUG: py32f002a only has 15 port A pins? pin 9-15, no mux
             #[cfg(any(feature = "py32f030", feature = "py32f003", feature = "py32f002a"))]
             9..=15 => {}
             _ => unreachable!(),
@@ -358,6 +363,7 @@ impl Active for Dynamic {}
 
 /// `Dynamic` pin error
 #[derive(Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum PinModeError {
     IncorrectMode,
 }
@@ -1151,6 +1157,7 @@ impl<AF> Alternate<AF> {
     }
 }
 
+#[cfg(any(feature = "py32f030", feature = "py32f003", feature = "py32f002a"))]
 gpio!(GPIOA, gpioa, PAx, 'A', [
     PA0: (pa0, 0),
     PA1: (pa1, 1),
@@ -1170,6 +1177,19 @@ gpio!(GPIOA, gpioa, PAx, 'A', [
     PA15: (pa15, 15),
 ]);
 
+#[cfg(feature = "py32f002b")]
+gpio!(GPIOA, gpioa, PAx, 'A', [
+    PA0: (pa0, 0),
+    PA1: (pa1, 1),
+    PA2: (pa2, 2, Debugger),
+    PA3: (pa3, 3),
+    PA4: (pa4, 4),
+    PA5: (pa5, 5),
+    PA6: (pa6, 6),
+    PA7: (pa7, 7),
+]);
+
+#[cfg(any(feature = "py32f030", feature = "py32f003", feature = "py32f002a"))]
 gpio!(GPIOB, gpiob, PBx, 'B', [
     PB0: (pb0, 0),
     PB1: (pb1, 1),
@@ -1178,6 +1198,19 @@ gpio!(GPIOB, gpiob, PBx, 'B', [
     PB4: (pb4, 4),
     PB5: (pb5, 5),
     PB6: (pb6, 6),
+    PB7: (pb7, 7),
+    PB8: (pb8, 8),
+]);
+
+#[cfg(feature = "py32f002b")]
+gpio!(GPIOB, gpiob, PBx, 'B', [
+    PB0: (pb0, 0),
+    PB1: (pb1, 1),
+    PB2: (pb2, 2),
+    PB3: (pb3, 3),
+    PB4: (pb4, 4),
+    PB5: (pb5, 5),
+    PB6: (pb6, 6, Debugger),
     PB7: (pb7, 7),
     PB8: (pb8, 8),
 ]);

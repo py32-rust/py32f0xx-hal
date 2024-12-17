@@ -12,6 +12,7 @@ use embedded_dma::{ReadBuffer, WriteBuffer};
 
 #[derive(Debug)]
 #[non_exhaustive]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum Error {
     Overrun,
 }

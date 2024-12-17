@@ -5,7 +5,7 @@ use panic_halt as _;
 
 use py32f0xx_hal as hal;
 
-use crate::hal::{delay::Delay, pac, prelude::*};
+use crate::hal::{pac, prelude::*};
 use cortex_m::peripheral::Peripherals;
 use cortex_m_rt::entry;
 use embedded_hal_02::blocking::delay::DelayMs;
@@ -13,7 +13,7 @@ use embedded_hal_02::blocking::delay::DelayMs;
 #[entry]
 fn main() -> ! {
     if let (Some(mut p), Some(cp)) = (pac::Peripherals::take(), Peripherals::take()) {
-        let rcc = p.RCC.configure().sysclk(8.mhz()).freeze(&mut p.FLASH);
+        let rcc = p.RCC.configure().sysclk(8.MHz()).freeze(&mut p.FLASH);
 
         let gpioa = p.GPIOA.split();
 
@@ -21,7 +21,7 @@ fn main() -> ! {
         let mut led = gpioa.pa5.into_push_pull_output();
 
         // Get delay provider
-        let mut delay = Delay::new(cp.SYST, &rcc);
+        let mut delay = cp.SYST.delay(&rcc.clocks);
 
         loop {
             led.toggle();

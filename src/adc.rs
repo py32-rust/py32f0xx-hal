@@ -45,13 +45,10 @@ const VTEMPVAL_DELTA: u16 = VTEMPVAL_HIGH - VTEMPVAL_LOW;
 
 use core::ptr;
 
-use embedded_hal_02::{
-    adc::{Channel, OneShot},
-    blocking::delay::DelayUs,
-};
+use embedded_hal_02::adc::{Channel, OneShot};
+use embedded_hal_02::blocking::delay::DelayUs;
 
 use crate::{
-    delay::Delay,
     gpio::*,
     pac::{
         adc::{
@@ -72,9 +69,9 @@ pub struct Adc {
     precision: AdcPrecision,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
 /// ADC Clock mode, select adc clock source
 ///
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum AdcClockMode {
     /// PCLK
     Pclk,
@@ -134,10 +131,10 @@ impl From<AdcClockMode> for CKMODE_A {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
 /// ADC Sampling time
 ///
 /// Options for the sampling time, each is T + 0.5 ADC clock cycles.
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum AdcSampleTime {
     /// 3.5 cycles sampling time
     T_3,
@@ -179,8 +176,8 @@ impl From<AdcSampleTime> for SMP_A {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
 /// ADC Result Alignment
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum AdcAlign {
     /// Left aligned results (most significant bits)
     ///
@@ -219,8 +216,8 @@ impl From<AdcAlign> for ALIGN_A {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
 /// ADC Sampling Precision
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum AdcPrecision {
     /// 12 bit precision
     B_12,
@@ -327,7 +324,7 @@ impl VTemp {
     /// Given a delay reference it will attempt to restrict to the
     /// minimum delay needed to ensure a 10 us t<sub>START</sub> value.
     /// Otherwise it will approximate the required delay using ADC reads.
-    pub fn read(adc: &mut Adc, delay: Option<&mut Delay>) -> i16 {
+    pub fn read(adc: &mut Adc, delay: Option<&mut dyn DelayUs<u32>>) -> i16 {
         let mut vtemp = Self::new();
         let vtemp_preenable = vtemp.is_enabled(adc);
 
@@ -335,7 +332,7 @@ impl VTemp {
             vtemp.enable(adc);
 
             if let Some(dref) = delay {
-                dref.delay_us(2_u16);
+                dref.delay_us(2);
             } else {
                 // Double read of vdda to allow sufficient startup time for the temp sensor
                 VRef::read_vdda(adc);

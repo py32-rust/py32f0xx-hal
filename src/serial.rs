@@ -254,6 +254,7 @@ inst! {
 
 /// Serial error
 #[derive(Debug)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[non_exhaustive]
 pub enum Error {
     /// The peripheral receive buffer was overrun.
@@ -519,7 +520,7 @@ fn apply_config<USART: Instance>(config: Config, clocks: &Clocks) {
     let usart = unsafe { &*USART::ptr() };
 
     // Configure baud rate
-    let brr = USART::clock(clocks).0 / config.baudrate.0;
+    let brr = USART::clock(clocks).raw() / config.baudrate.0;
     assert!(brr >= 16, "impossible baud rate");
     usart.brr.write(|w| unsafe { w.bits(brr) });
 

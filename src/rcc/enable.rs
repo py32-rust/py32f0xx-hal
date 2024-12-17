@@ -80,6 +80,7 @@ bus! {
 #[cfg(any(feature = "py32f003", feature = "py32f030"))]
 bus! {
     TIM3 => (APB, apbenr1, apbrstr1, 1),
+    TIM17 => (APB, apbenr2, apbrstr2, 18),
 }
 
 #[cfg(any(feature = "py32f002b", feature = "py32f003", feature = "py32f030"))]
@@ -90,9 +91,4 @@ bus! {
 #[cfg(any(feature = "py32f002a", feature = "py32f003", feature = "py32f030"))]
 bus! {
     TIM16 => (APB, apbenr2, apbrstr2, 17),
-}
-
-#[cfg(any(feature = "py32f003", feature = "py32f030"))]
-bus! {
-    TIM17 => (APB, apbenr2, apbrstr2, 18),
 }

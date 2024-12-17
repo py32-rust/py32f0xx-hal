@@ -15,8 +15,6 @@ pub use py32f0::py32f030 as pac;
 
 #[cfg(feature = "device-selected")]
 pub mod adc;
-#[cfg(feature = "device-selected")]
-pub mod delay;
 #[cfg(all(feature = "device-selected", feature = "with-dma"))]
 pub mod dma;
 #[cfg(feature = "device-selected")]
@@ -38,7 +36,7 @@ pub mod spi;
 #[cfg(feature = "device-selected")]
 pub mod time;
 #[cfg(feature = "device-selected")]
-pub mod timers;
+pub mod timer;
 #[cfg(feature = "device-selected")]
 pub mod watchdog;
 

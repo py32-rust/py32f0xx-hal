@@ -24,7 +24,9 @@ This version depends on py32-rs v1.1.2 or later
  * `as_floating_input`
  * `as_pull_up_input`
  * `as_pull_down_input`
-- module `rcc` has new traits and implementations `Enable`, `Reset`, `BusClock`, `BusTimerClock`, `RccBus`
+- module `rcc`
+ * new traits and implementations `Enable`, `Reset`, `BusClock`, `BusTimerClock`, `RccBus`
+ *  added function `debug_stop_mode` for control of clock function in sleep and stop conditions
 - added module `rtc` and examples thereof
 - module `serial`
  * Implemented embedded-hal v1.0 nb::Read/Write traits
@@ -59,6 +61,7 @@ This version depends on py32-rs v1.1.2 or later
 - module `spi`
  * embedded-hal v0.2.7 trait implementations moved to spi/hal_02 module
  * changed to use rcc enable, reset, and bus frequencies
+- module `time` changed to use fugit crate, this alters how you specify frequency, ie, hz -> Hz, etc.
 - module `timers`
  * changed to use rcc enable, reset, and bus frequencies
 
@@ -66,6 +69,7 @@ This version depends on py32-rs v1.1.2 or later
 
 ### Removed
 
+- `delay` and `timers` modules removed, the functionality is in the `timer` module now
 - `spi::Event::Crc` removed, as that doesn't exist on this micro
 
 ### Fixed

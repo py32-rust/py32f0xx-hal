@@ -5,24 +5,22 @@ use panic_halt as _;
 
 use py32f0xx_hal as hal;
 
-use crate::hal::{pac, prelude::*, time::Hertz, timers::*};
-
+use crate::hal::{pac, prelude::*};
 use cortex_m_rt::entry;
-
-use embedded_hal_02::timer::CountDown;
 
 #[entry]
 fn main() -> ! {
     if let Some(mut p) = pac::Peripherals::take() {
-        let rcc = p.RCC.configure().sysclk(8.mhz()).freeze(&mut p.FLASH);
+        let rcc = p.RCC.configure().sysclk(8.MHz()).freeze(&mut p.FLASH);
 
         let gpioa = p.GPIOA.split();
 
         // (Re-)configure PA5 as output
         let mut led = gpioa.pa5.into_push_pull_output();
 
-        // Set up a timer expiring after 1s
-        let mut timer = Timer::tim1(p.TIM1, Hertz(5), &rcc.clocks);
+        // Set up a timer expiring after 200ms
+        let mut timer = p.TIM1.counter_hz(&rcc.clocks);
+        timer.start(5.Hz()).unwrap();
 
         loop {
             led.toggle();

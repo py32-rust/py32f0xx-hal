@@ -3,14 +3,14 @@
 */
 use crate::pac::{RCC, RTC};
 
-use crate::time::Hertz;
+use crate::time::{Hertz, Hz};
 
 use core::convert::Infallible;
 use core::marker::PhantomData;
 
 // The LSE runs at at 32 768 hertz unless an external clock is provided
-const LSE_HERTZ: Hertz = Hertz(32_768);
-const LSI_HERTZ: Hertz = Hertz(32_768);
+const LSE_HERTZ: Hertz = Hz(32_768);
+const LSI_HERTZ: Hertz = Hz(32_768);
 
 /// RTC clock source HSE clock divided by 128 (type state)
 pub struct RtcClkHseDiv128;
@@ -66,7 +66,7 @@ impl Rtc<RtcClkLse> {
         Self::enable_rtc();
 
         // Set the prescaler to make it count up once every second.
-        let prl = LSE_HERTZ.0 - 1;
+        let prl = LSE_HERTZ.raw() - 1;
         assert!(prl < 1 << 20);
         result.perform_write(|s| {
             s.regs.prlh.write(|w| unsafe { w.bits(prl >> 16) });
@@ -144,7 +144,7 @@ impl Rtc<RtcClkLsi> {
         Self::enable_rtc();
 
         // Set the prescaler to make it count up once every second.
-        let prl = LSI_HERTZ.0 - 1;
+        let prl = LSI_HERTZ.raw() - 1;
         assert!(prl < 1 << 20);
         result.perform_write(|s| {
             s.regs.prlh.write(|w| unsafe { w.bits(prl >> 16) });
@@ -212,7 +212,7 @@ impl Rtc<RtcClkHseDiv128> {
         Self::enable_rtc();
 
         // Set the prescaler to make it count up once every second.
-        let prl = hse.0 / 128 - 1;
+        let prl = hse.raw() / 128 - 1;
         assert!(prl < 1 << 20);
         result.perform_write(|s| {
             s.regs.prlh.write(|w| unsafe { w.bits(prl >> 16) });
@@ -264,9 +264,9 @@ impl<CS> Rtc<CS> {
     pub fn select_frequency(&mut self, frequency: Hertz) {
         // The manual says that the zero value for the prescaler is not recommended, thus the
         // minimum division factor is 2 (prescaler + 1)
-        assert!(frequency.0 <= LSE_HERTZ.0 / 2);
+        assert!(frequency <= LSE_HERTZ / 2);
 
-        let prescaler = LSE_HERTZ.0 / frequency.0 - 1;
+        let prescaler = LSE_HERTZ.raw() / frequency.raw() - 1;
         self.perform_write(|s| {
             s.regs.prlh.write(|w| unsafe { w.bits(prescaler >> 16) });
             s.regs

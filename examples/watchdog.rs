@@ -5,7 +5,7 @@ use panic_halt as _;
 
 use py32f0xx_hal as hal;
 
-use crate::hal::{delay::Delay, pac, prelude::*, time::Hertz, watchdog};
+use crate::hal::{pac, prelude::*, watchdog};
 use core::fmt::Write;
 use cortex_m::peripheral::Peripherals;
 use cortex_m_rt::entry;
@@ -16,7 +16,7 @@ use embedded_hal_02::watchdog::{Watchdog, WatchdogEnable};
 fn main() -> ! {
     if let (Some(p), Some(cp)) = (pac::Peripherals::take(), Peripherals::take()) {
         let mut flash = p.FLASH;
-        let mut rcc = p.RCC.configure().sysclk(8.mhz()).freeze(&mut flash);
+        let mut rcc = p.RCC.configure().sysclk(8.MHz()).freeze(&mut flash);
 
         let gpioa = p.GPIOA.split();
         let dbg = p.DBG;
@@ -27,7 +27,7 @@ fn main() -> ! {
         let mut watchdog = watchdog::Watchdog::new(&mut rcc, p.IWDG);
 
         // Get delay provider
-        let mut delay = Delay::new(cp.SYST, &rcc);
+        let mut delay = cp.SYST.delay(&rcc.clocks);
 
         // Configure serial TX pin
         let tx = gpioa.pa2.into_alternate_af1();
@@ -37,7 +37,7 @@ fn main() -> ! {
 
         serial.write_str("RESET \r\n").ok();
 
-        watchdog.start(Hertz(1));
+        watchdog.start(1.Hz());
         delay.delay_ms(500_u16);
         watchdog.feed();
         serial.write_str("Feed the dog 1st\r\n").ok();

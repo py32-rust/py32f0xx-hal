@@ -7,17 +7,13 @@ use panic_probe as _;
 use py32f0xx_hal as hal;
 
 use crate::hal::{
-    delay::Delay,
     pac,
     prelude::*,
     spi::{Mode, Phase, Polarity},
-    time::Hertz,
-    timers::Timer,
 };
 use cortex_m_rt::entry;
 use defmt::{error, info};
 use embedded_hal_02::blocking::delay::DelayMs;
-use embedded_hal_02::timer::CountDown;
 
 use mfrc522::comm::eh02::spi::SpiInterface;
 use mfrc522::Mfrc522;
@@ -42,7 +38,7 @@ fn main() -> ! {
         let mut flash = p.FLASH;
         let rcc = p.RCC.configure().freeze(&mut flash);
 
-        let mut delay = Delay::new(cp.SYST, &rcc);
+        let mut delay = cp.SYST.delay(&rcc.clocks);
 
         let gpioa = p.GPIOA.split();
 
@@ -61,7 +57,7 @@ fn main() -> ! {
         let spi = p.SPI1.spi(
             (Some(sck), Some(miso), Some(mosi)),
             MODE,
-            1.mhz().into(),
+            1.MHz().into(),
             &rcc.clocks,
         );
         let itf = SpiInterface::new(spi).with_nss(nss).with_delay(|| {
@@ -75,7 +71,8 @@ fn main() -> ! {
         info!("MFRC522 version: 0x{:02x}", ver);
         assert!(ver == 0x91 || ver == 0x92);
 
-        let mut timer = Timer::tim1(p.TIM1, Hertz(1), &rcc.clocks);
+        let mut timer = p.TIM1.counter_hz(&rcc.clocks);
+        timer.start(1.Hz()).unwrap();
 
         loop {
             info!("Waiting for card...");

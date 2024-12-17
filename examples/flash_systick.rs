@@ -23,7 +23,7 @@ static GPIO: Mutex<RefCell<Option<gpioa::PA5<Output<PushPull>>>>> = Mutex::new(R
 fn main() -> ! {
     if let (Some(mut p), Some(cp)) = (pac::Peripherals::take(), Peripherals::take()) {
         cortex_m::interrupt::free(move |cs| {
-            let _rcc = p.RCC.configure().sysclk(24.mhz()).freeze(&mut p.FLASH);
+            let _rcc = p.RCC.configure().sysclk(24.MHz()).freeze(&mut p.FLASH);
 
             let gpioa = p.GPIOA.split();
 

@@ -110,6 +110,7 @@ pub enum SpiBitFormat {
 /// SPI error
 #[non_exhaustive]
 #[derive(Debug)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum Error {
     /// Overrun occurred
     Overrun,
@@ -408,7 +409,7 @@ impl<SPI: Instance, SCKPIN, MISOPIN, MOSIPIN, WIDTH: Copy>
         /* Make sure the SPI unit is disabled so we can configure it */
         spi.cr1.modify(|_, w| w.spe().clear_bit());
 
-        let br = match clocks.pclk().0 / speed.into().0 {
+        let br = match clocks.pclk().raw() / speed.into().raw() {
             0 => unreachable!(),
             1..=2 => 0b000,
             3..=5 => 0b001,

@@ -49,7 +49,7 @@ fn main() -> ! {
         let mut spi = p.SPI1.spi(
             (Some(sck), Some(miso), Some(mosi)),
             MODE,
-            1.mhz().into(),
+            1.MHz().into(),
             &rcc.clocks,
         );
 

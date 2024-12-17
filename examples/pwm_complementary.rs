@@ -12,13 +12,13 @@ use py32f0xx_hal as hal;
 
 use embedded_hal_02::blocking::delay::DelayMs;
 use embedded_hal_02::PwmPin;
-use hal::{delay::Delay, pac, prelude::*, pwm};
+use hal::{pac, prelude::*, pwm};
 
 #[entry]
 fn main() -> ! {
     if let Some(mut dp) = pac::Peripherals::take() {
         // Set up the system clock.
-        let rcc = dp.RCC.configure().sysclk(8.mhz()).freeze(&mut dp.FLASH);
+        let rcc = dp.RCC.configure().sysclk(8.MHz()).freeze(&mut dp.FLASH);
 
         let gpioa = dp.GPIOA.split();
         let channels = (
@@ -26,7 +26,7 @@ fn main() -> ! {
             gpioa.pa7.into_alternate_af2(), // on TIM1_CH1N
         );
 
-        let pwm = pwm::tim1(dp.TIM1, channels, &rcc.clocks, 20u32.khz());
+        let pwm = pwm::tim1(dp.TIM1, channels, &rcc.clocks, 20.kHz());
         let (mut ch1, mut ch1n) = pwm;
         let max_duty = ch1.get_max_duty();
         ch1.set_duty(max_duty / 2);
@@ -35,7 +35,7 @@ fn main() -> ! {
 
         // simple duty sweep
         if let Some(cp) = cortex_m::Peripherals::take() {
-            let mut delay = Delay::new(cp.SYST, &rcc);
+            let mut delay = cp.SYST.delay(&rcc.clocks);
 
             let steps = 100;
 

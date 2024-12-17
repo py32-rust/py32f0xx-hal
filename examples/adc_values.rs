@@ -31,7 +31,7 @@ fn main() -> ! {
     ) {
         cortex_m::interrupt::free(move |cs| {
             let mut flash = dp.FLASH;
-            let rcc = dp.RCC.configure().sysclk(24.mhz()).freeze(&mut flash);
+            let rcc = dp.RCC.configure().sysclk(24.MHz()).freeze(&mut flash);
 
             let gpioa = dp.GPIOA.split();
 

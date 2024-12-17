@@ -8,17 +8,16 @@ use py32f0xx_hal as hal;
 use crate::hal::{
     pac::{interrupt, Interrupt, Peripherals, TIM16},
     prelude::*,
-    timers::{Event, Timer},
+    timer::{CounterMs, Event},
 };
 use core::cell::RefCell;
 use core::fmt::Write as _;
 use core::ops::DerefMut;
 use cortex_m::{interrupt::Mutex, peripheral::Peripherals as c_m_Peripherals};
 use cortex_m_rt::entry;
-use embedded_hal_02::timer::CountDown;
 
 // Make timer interrupt registers globally available
-static GINT: Mutex<RefCell<Option<Timer<TIM16>>>> = Mutex::new(RefCell::new(None));
+static GINT: Mutex<RefCell<Option<CounterMs<TIM16>>>> = Mutex::new(RefCell::new(None));
 
 #[derive(Copy, Clone)]
 struct Time {
@@ -58,7 +57,7 @@ fn main() -> ! {
     if let (Some(p), Some(cp)) = (Peripherals::take(), c_m_Peripherals::take()) {
         let mut serial = cortex_m::interrupt::free(move |cs| {
             let mut flash = p.FLASH;
-            let rcc = p.RCC.configure().sysclk(24.mhz()).freeze(&mut flash);
+            let rcc = p.RCC.configure().sysclk(24.MHz()).freeze(&mut flash);
 
             // Use USART1 with PA2 and PA3 as serial port
             let gpioa = p.GPIOA.split();
@@ -66,10 +65,11 @@ fn main() -> ! {
             let rx = gpioa.pa3.into_alternate_af1();
 
             // Set up a timer expiring every millisecond
-            let mut timer = Timer::tim16(p.TIM16, 1000.hz(), &rcc.clocks);
+            let mut timer = p.TIM16.counter_ms(&rcc.clocks);
 
             // Generate an interrupt when the timer expires
-            timer.listen(Event::TimeOut);
+            timer.listen(Event::Update);
+            timer.start(1.millis()).unwrap();
 
             // Move the timer into our global storage
             *GINT.borrow(cs).borrow_mut() = Some(timer);

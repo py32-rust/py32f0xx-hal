@@ -37,7 +37,7 @@ fn main() -> ! {
         let mut spi = p.SPI1.spi(
             (Some(sck), Some(miso), Some(mosi)),
             MODE,
-            100_000.hz(),
+            100_000.Hz(),
             &rcc.clocks,
         );
 

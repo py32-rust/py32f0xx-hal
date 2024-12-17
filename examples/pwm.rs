@@ -16,7 +16,7 @@ use hal::{pac, prelude::*, pwm};
 fn main() -> ! {
     if let Some(mut dp) = pac::Peripherals::take() {
         // Set up the system clock.
-        let rcc = dp.RCC.configure().sysclk(8.mhz()).freeze(&mut dp.FLASH);
+        let rcc = dp.RCC.configure().sysclk(8.MHz()).freeze(&mut dp.FLASH);
 
         let gpioa = dp.GPIOA.split();
         let channels = (
@@ -24,7 +24,7 @@ fn main() -> ! {
             gpioa.pa9.into_alternate_af2(), // on TIM1_CH2
         );
 
-        let pwm = pwm::tim1(dp.TIM1, channels, &rcc.clocks, 20u32.khz());
+        let pwm = pwm::tim1(dp.TIM1, channels, &rcc.clocks, 20.kHz());
         let (mut ch1, mut ch2) = pwm;
         let max_duty = ch1.get_max_duty();
         ch1.set_duty(max_duty / 2);
