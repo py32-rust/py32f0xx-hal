@@ -2,17 +2,16 @@
 name = "py32f0xx-hal"
 version = "0.2.0"
 authors = [
-    "Daniel Egger <daniel@eggers-club.de>",
-    "Thomas Bytheway <github@harkonen.net>",
-    "Jesse Braham <jesse@beta7.io>",
+    "creatoy@yeah.net",
+    "Greg Green <ggreen@bit-builder.com>",
 ]
-edition = "2018"
+edition = "2021"
 rust-version = "1.59"
 
 keywords = ["arm", "cortex-m", "py32f0xx", "hal"]
 license = "0BSD"
 readme = "README.md"
-repository = "https://github.com/creatoy/py32f0xx-hal"
+repository = "https://github.com/py32-rust/py32f0xx-hal"
 categories = ["embedded", "hardware-support", "no-std"]
 description = "Peripheral access API for py32F0 series microcontrollers"
 documentation = "https://docs.rs/crate/py32f0xx-hal"
@@ -25,8 +24,12 @@ targets = ["thumbv6m-none-eabi"]
 bare-metal = { version = "1.0.0" }
 cast = "0.3.0"
 cortex-m = { version = "0.7.7", features = ["critical-section-single-core"] }
-embedded-time = "0.12.1"
+py32f0 = "0.2.0"
+embedded-hal = "1.0"
+embedded-hal-nb = "1.0"
 embedded-dma = "0.2.0"
+embedded-io = "0.6.1"
+embedded-time = "0.12.1"
 nb = "1.1.0"
 void = { version = "1.0.2", default-features = false }
 defmt = { version = "0.3.8", optional = true }
@@ -39,20 +42,6 @@ rtic-monotonic = { version = "1.0", optional = true }
 package = "embedded-hal"
 version = "0.2.7"
 features = ["unproven"]
-
-[dependencies.embedded-hal]
-version = "1.0"
-
-[dependencies.embedded-hal-nb]
-version = "1.0"
-
-[dependencies.embedded-io]
-version = "0.6.1"
-
-[dependencies.py32f0]
-version = "0.1.1"
-features = []
-path = "../py32-rs/py32f0"
 
 [dev-dependencies]
 cortex-m-rt = "0.7.3"

@@ -84,7 +84,7 @@ pub enum MCOSrc {
     NoClock = 0,
     ///1: SYSCLK clock selected
     Sysclk = 1,
-    ///3: MSI oscillator clock selected
+    ///3: HSI oscillator clock selected
     Hsi = 3,
     ///4: HSE oscillator clock selected
     Hse = 4,

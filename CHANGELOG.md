@@ -4,17 +4,19 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-This version depends on py32-rs v1.1.2 or later
+This version depends on py32-rs v0.2.0 or later
 
 ### Added
 
+- added optional feature "rtic" to implement `rtic-monotonic::Monotonic` trait on timers.
+- added optional feature "defmt" to implement `defmt::Format` trait on Errors in various modules
+- added feature "with-dma" for internal use to simplify dma related code
 - added module `dma`
-- added feature gate to select "with-dma"
 - module `gpio` has the following new types and traits:
  * Struct `PartiallyErasedPin` and `ErasedPin` replaces previous `Pin`
  * Struct `DynamicPin` allows pin to swap between an `Input` and `Output` pin during runtime at the cost of possible runtime errors
  * Trait `ExtiPin` allows connecting a pin to EXTI lines for interrupt and event handling
- * Trait `Debugger` marks pins that upon bootup are dedicated to the DBG peripheral, must be `activate` before use as a gpio
+ * Struct `Debugger` marks pins that upon bootup are dedicated to the DBG peripheral, must be `activate` before use as a gpio
  * Trait `PinExt` adds functions to retrieve pin number and port id ('A', 'B', etc)
 - gpio Pins can be temporarily mode changed to do an action, using these methods:
  * `as_push_pull_output`
@@ -42,9 +44,11 @@ This version depends on py32-rs v1.1.2 or later
  * Works with both 8 and 16 bit words, though 16bit not tested
  * Added `SpiSlave` for slave functionality, though it is not tested
  * Added frame size conversion methods, [ex: `frame_size_8_bit`]
+- Checking that only one device has been selected in build.rs
 
 ### Changed
 
+- Fixed repo url's
 - Changed all examples to use new api's where necessary
 - module `adc` changed to use new rcc enable, reset, and bus frequencies
 - module `gpio`
@@ -76,11 +80,11 @@ This version depends on py32-rs v1.1.2 or later
 
 ### Security
 
-## v0.1.1
+## v0.1.1 - 2024-10-10
 
-## V0.1.0
+## V0.1.0 - 2024-09-07
 
-## v0.0.1
+## v0.0.1 - 2023-06-10
 
  - Original Release
 

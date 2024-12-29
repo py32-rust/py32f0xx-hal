@@ -508,7 +508,7 @@ impl<TIM: Instance, const FREQ: u32> FTimer<TIM, FREQ> {
         self.tim.clear_interrupt_flag(event);
     }
 
-    pub fn get_interrupt(&mut self) -> Event {
+    pub fn get_interrupt(&self) -> Event {
         self.tim.get_interrupt_flag()
     }
 
