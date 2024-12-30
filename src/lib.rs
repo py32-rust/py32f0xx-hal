@@ -27,7 +27,7 @@ pub mod prelude;
 pub mod pwm;
 #[cfg(feature = "device-selected")]
 pub mod rcc;
-#[cfg(feature = "device-selected")]
+#[cfg(any(feature = "py32f003", feature = "py32f030"))]
 pub mod rtc;
 #[cfg(feature = "device-selected")]
 pub mod serial;

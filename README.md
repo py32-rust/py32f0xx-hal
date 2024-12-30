@@ -1,14 +1,19 @@
 py32f0xx-hal
 =============
 
-> **NOTE: The function is not fully tested, and you are responsible for any problems with the use of this repository.**
+> [HAL] for the py32f0xx family of microcontrollers
 
-Known issue:
-    - I2C not work
+> **NOTE: The function's are not fully tested, and you are responsible for any problems with the use of this repository.**
 
-[![Continuous integration](https://github.com/creatoy/py32f0xx-hal/workflows/Continuous%20integration/badge.svg)](https://github.com/py32-rust/py32f0xx-hal)
+Known issues:
+    - I2C master/slave not tested
+    - rtc not tested
+
+[![Crates.io](https://img.shields.io/crates/d/py32f0xx-hal.svg)](https://crates.io/crates/py32f0xx-hal)
 [![Crates.io](https://img.shields.io/crates/v/py32f0xx-hal.svg)](https://crates.io/crates/py32f0xx-hal)
 [![docs.rs](https://docs.rs/py32f0xx-hal/badge.svg)](https://docs.rs/py32f0xx-hal/)
+[![dependency status](https://deps.rs/repo/github/[py32-rust/py32f0xx-hal/status.svg)](https://deps.rs/repo/github/py32-rust/py32f0xx-hal)
+[![Continuous integration](https://github.com/creatoy/py32f0xx-hal/workflows/Continuous%20integration/badge.svg)](https://github.com/py32-rust/py32f0xx-hal)
 
 [_py32f0xx-hal_](https://github.com/py32-rust/py32f0xx-hal) contains a hardware abstraction on top of the peripheral access API for the puyasemi PY32F0xx family of microcontrollers.
 
@@ -32,8 +37,12 @@ $ cargo build --features=py32f002ax5 --example=blinky
 To use py32f0xx-hal as a dependency in a standalone project the target device feature must be specified in the `Cargo.toml` file:
 ```
 [dependencies]
+embedded-hal = "1"
+nb = "1"
 cortex-m = "0.7.7"
 cortex-m-rt = "0.7.3"
+# Panic behaviour, see https://crates.io/keywords/panic-impl for alternatives
+panic-halt = "0.2.0"
 py32f0xx-hal = { version = "0.2.0", features = ["py32f002ax5"]}
 ```
 

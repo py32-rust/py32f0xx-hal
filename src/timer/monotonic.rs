@@ -146,7 +146,7 @@ mono!(crate::pac::TIM3);
 #[cfg(any(feature = "py32f030", feature = "py32f003"))]
 mono!(crate::pac::TIM17);
 
-#[cfg(any(feature = "py32f030", feature = "py32f003", feature = "py32f002a"))]
+#[cfg(any(feature = "py32f030", feature = "py32f003"))]
 mono!(crate::pac::TIM16);
 
 #[cfg(any(feature = "py32f030", feature = "py32f003", feature = "py32f002b"))]

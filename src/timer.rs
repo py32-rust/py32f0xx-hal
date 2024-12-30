@@ -559,7 +559,12 @@ hal!(
     pac::TIM16: [Timer16, u16, apb_fz2, dbg_timer16_stop, opm: opm,],
 );
 
-#[cfg(any(feature = "py32f030", feature = "py32f003", feature = "py32f002b"))]
+#[cfg(any(feature = "py32f030", feature = "py32f003"))]
 hal!(
     pac::TIM14: [Timer14, u16, apb_fz2, dbg_timer14_stop,],
+);
+
+#[cfg(feature = "py32f002b")]
+hal!(
+    pac::TIM14: [Timer14, u16, apb_fz2, dbg_tim14_stop,],
 );

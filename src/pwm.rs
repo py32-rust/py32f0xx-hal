@@ -698,7 +698,7 @@ macro_rules! pwm_1_channel {
                 $TIMX::reset(rcc);
 
                 if PINS::C1 {
-                    tim.ccmr1_output().modify(|_, w| w.oc1pe().set_bit().oc1m().bits(6));
+                    tim.ccmr1_output().modify(|_, w| unsafe { w.oc1pe().set_bit().oc1m().bits(6) });
                 }
 
                 let ticks = $TIMX::timer_clock(clocks).raw() / freq.into().raw();

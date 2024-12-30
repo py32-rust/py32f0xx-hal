@@ -9,12 +9,14 @@ use core::convert::Infallible;
 use core::marker::PhantomData;
 
 // The LSE runs at at 32 768 hertz unless an external clock is provided
+#[cfg(feature = "py32f030")]
 const LSE_HERTZ: Hertz = Hz(32_768);
 const LSI_HERTZ: Hertz = Hz(32_768);
 
 /// RTC clock source HSE clock divided by 128 (type state)
 pub struct RtcClkHseDiv128;
 /// RTC clock source LSE oscillator clock (type state)
+#[cfg(feature = "py32f030")]
 pub struct RtcClkLse;
 /// RTC clock source LSI oscillator clock (type state)
 pub struct RtcClkLsi;
@@ -41,11 +43,12 @@ CPU when it is in low power mode.
   [examples/blinky_rtc.rs]: https://github.com/py32f0xx-hal/blob/v0.2.0/examples/blinky_rtc.rs
 */
 
-pub struct Rtc<CS = RtcClkLse> {
+pub struct Rtc<CS = RtcClkLsi> {
     regs: RTC,
     _clock_source: PhantomData<CS>,
 }
 
+#[cfg(feature = "py32f030")]
 impl Rtc<RtcClkLse> {
     /**
       Initialises the RTC with low-speed external crystal source (lse).
@@ -260,13 +263,13 @@ impl Rtc<RtcClkHseDiv128> {
 
 impl<CS> Rtc<CS> {
     /// Selects the frequency of the RTC Timer
-    /// NOTE: Maximum frequency of 16384 Hz using the internal LSE
+    /// NOTE: Maximum frequency of 16384 Hz using the internal LSI
     pub fn select_frequency(&mut self, frequency: Hertz) {
         // The manual says that the zero value for the prescaler is not recommended, thus the
         // minimum division factor is 2 (prescaler + 1)
-        assert!(frequency <= LSE_HERTZ / 2);
+        assert!(frequency <= LSI_HERTZ / 2);
 
-        let prescaler = LSE_HERTZ.raw() / frequency.raw() - 1;
+        let prescaler = LSI_HERTZ.raw() / frequency.raw() - 1;
         self.perform_write(|s| {
             s.regs.prlh.write(|w| unsafe { w.bits(prescaler >> 16) });
             s.regs

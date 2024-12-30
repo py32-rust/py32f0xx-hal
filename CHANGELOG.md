@@ -44,7 +44,6 @@ This version depends on py32-rs v0.2.0 or later
  * Works with both 8 and 16 bit words, though 16bit not tested
  * Added `SpiSlave` for slave functionality, though it is not tested
  * Added frame size conversion methods, [ex: `frame_size_8_bit`]
-- Checking that only one device has been selected in build.rs
 
 ### Changed
 
@@ -69,8 +68,6 @@ This version depends on py32-rs v0.2.0 or later
 - module `timers`
  * changed to use rcc enable, reset, and bus frequencies
 
-### Deprecated
-
 ### Removed
 
 - `delay` and `timers` modules removed, the functionality is in the `timer` module now
@@ -78,7 +75,9 @@ This version depends on py32-rs v0.2.0 or later
 
 ### Fixed
 
-### Security
+- Fixed github action `changelog.yml`
+- Fixed github action `ci.yml`
+- Fixed `tool/check.py`
 
 ## v0.1.1 - 2024-10-10
 
