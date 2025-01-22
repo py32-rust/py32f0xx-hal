@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## Unreleased
+## v0.2.0
 
 This version depends on py32-rs v0.2.0 or later
 
@@ -28,7 +28,7 @@ This version depends on py32-rs v0.2.0 or later
  * `as_pull_down_input`
 - module `rcc`
  * new traits and implementations `Enable`, `Reset`, `BusClock`, `BusTimerClock`, `RccBus`
- *  added function `debug_stop_mode` for control of clock function in sleep and stop conditions
+ * added function `debug_stop_mode` for control of clock function in sleep and stop conditions
 - added module `rtc` and examples thereof
 - module `serial`
  * Implemented embedded-hal v1.0 nb::Read/Write traits
@@ -44,11 +44,13 @@ This version depends on py32-rs v0.2.0 or later
  * Works with both 8 and 16 bit words, though 16bit not tested
  * Added `SpiSlave` for slave functionality, though it is not tested
  * Added frame size conversion methods, [ex: `frame_size_8_bit`]
+- module `timer`
+ * Old module `timers` was removed. Now follows both hal 1.0 and 0.2.7 traits
 
 ### Changed
 
 - Fixed repo url's
-- Changed all examples to use new api's where necessary
+- Changed all examples to use new api's where necessary, and to remove code structure that was causing much of the example to be optimized away
 - module `adc` changed to use new rcc enable, reset, and bus frequencies
 - module `gpio`
  * pin `into_<mode>` fns have removed the atomic context parameter which is not needed depending on what OS is used
@@ -64,14 +66,13 @@ This version depends on py32-rs v0.2.0 or later
 - module `spi`
  * embedded-hal v0.2.7 trait implementations moved to spi/hal_02 module
  * changed to use rcc enable, reset, and bus frequencies
-- module `time` changed to use fugit crate, this alters how you specify frequency, ie, hz -> Hz, etc.
-- module `timers`
- * changed to use rcc enable, reset, and bus frequencies
+- module `time` changed to use fugit crate, this alters how you specify frequency, ie, hz -> Hz, etc
 
 ### Removed
 
 - `delay` and `timers` modules removed, the functionality is in the `timer` module now
 - `spi::Event::Crc` removed, as that doesn't exist on this micro
+- `timers` module removed, replaced by `timer`
 
 ### Fixed
 
