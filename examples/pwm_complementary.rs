@@ -16,45 +16,38 @@ use hal::{pac, prelude::*, pwm};
 
 #[entry]
 fn main() -> ! {
-    if let Some(mut dp) = pac::Peripherals::take() {
-        // Set up the system clock.
-        let rcc = dp.RCC.configure().sysclk(8.MHz()).freeze(&mut dp.FLASH);
+    let mut dp = pac::Peripherals::take().unwrap();
+    let cp = cortex_m::Peripherals::take().unwrap();
+    // Set up the system clock.
+    let rcc = dp.RCC.configure().sysclk(24.MHz()).freeze(&mut dp.FLASH);
 
-        let gpioa = dp.GPIOA.split();
-        let channels = (
-            gpioa.pa8.into_alternate_af2(), // on TIM1_CH1
-            gpioa.pa7.into_alternate_af2(), // on TIM1_CH1N
-        );
+    let gpioa = dp.GPIOA.split();
+    let channels = (
+        gpioa.pa8.into_alternate_af2(), // on TIM1_CH1
+        gpioa.pa7.into_alternate_af2(), // on TIM1_CH1N
+    );
 
-        let pwm = pwm::tim1(dp.TIM1, channels, &rcc.clocks, 20.kHz());
-        let (mut ch1, mut ch1n) = pwm;
-        let max_duty = ch1.get_max_duty();
-        ch1.set_duty(max_duty / 2);
-        ch1.enable();
-        ch1n.enable();
+    let pwm = pwm::tim1(dp.TIM1, channels, &rcc.clocks, 20.kHz());
+    let (mut ch1, mut ch1n) = pwm;
+    let max_duty = ch1.get_max_duty();
+    ch1.set_duty(max_duty / 2);
+    ch1.enable();
+    ch1n.enable();
 
-        // simple duty sweep
-        if let Some(cp) = cortex_m::Peripherals::take() {
-            let mut delay = cp.SYST.delay(&rcc.clocks);
+    // simple duty sweep
+    let mut delay = cp.SYST.delay(&rcc.clocks);
 
-            let steps = 100;
+    let steps = 100;
 
-            loop {
-                for i in 0..steps {
-                    ch1.set_duty(max_duty / steps * i);
-                    delay.delay_ms(30u16);
-                }
-
-                for i in (1..steps).rev() {
-                    ch1.set_duty(max_duty / steps * i);
-                    delay.delay_ms(30u16);
-                }
-            }
-        }
-    }
-
-    // something went wrong when acquiring peripheral access
     loop {
-        cortex_m::asm::nop();
+        for i in 0..steps {
+            ch1.set_duty(max_duty / steps * i);
+            delay.delay_ms(30u16);
+        }
+
+        for i in (1..steps).rev() {
+            ch1.set_duty(max_duty / steps * i);
+            delay.delay_ms(30u16);
+        }
     }
 }

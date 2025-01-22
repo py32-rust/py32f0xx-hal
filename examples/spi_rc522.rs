@@ -31,67 +31,61 @@ fn main() -> ! {
         phase: Phase::CaptureOnSecondTransition,
     };
 
-    if let (Some(p), Some(cp)) = (
-        pac::Peripherals::take(),
-        cortex_m::peripheral::Peripherals::take(),
-    ) {
-        let mut flash = p.FLASH;
-        let rcc = p.RCC.configure().freeze(&mut flash);
+    let p = pac::Peripherals::take().unwrap();
+    let cp = cortex_m::Peripherals::take().unwrap();
 
-        let mut delay = cp.SYST.delay(&rcc.clocks);
+    let mut flash = p.FLASH;
+    let rcc = p.RCC.configure().freeze(&mut flash);
 
-        let gpioa = p.GPIOA.split();
+    let mut delay = cp.SYST.delay(&rcc.clocks);
 
-        let (sck, miso, mosi, nss, mut rst) = (
-            // SPI pins
-            gpioa.pa5.into_alternate_af0(),
-            gpioa.pa6.into_alternate_af0(),
-            gpioa.pa7.into_alternate_af0(),
-            // Aux pins
-            gpioa.pa4.into_push_pull_output(),
-            gpioa.pa1.into_push_pull_output(),
-        );
-        rst.set_low();
+    let gpioa = p.GPIOA.split();
 
-        // Configure SPI with 1MHz rate
-        let spi = p.SPI1.spi(
-            (Some(sck), Some(miso), Some(mosi)),
-            MODE,
-            1.MHz().into(),
-            &rcc.clocks,
-        );
-        let itf = SpiInterface::new(spi).with_nss(nss).with_delay(|| {
-            delay.delay_ms(1_u16);
-        });
-        rst.set_high();
+    let (sck, miso, mosi, nss, mut rst) = (
+        // SPI pins
+        gpioa.pa5.into_alternate_af0(),
+        gpioa.pa6.into_alternate_af0(),
+        gpioa.pa7.into_alternate_af0(),
+        // Aux pins
+        gpioa.pa4.into_push_pull_output(),
+        gpioa.pa1.into_push_pull_output(),
+    );
+    rst.set_low();
 
-        let mut mfrc522 = Mfrc522::new(itf).init().unwrap();
+    // Configure SPI with 1MHz rate
+    let spi = p.SPI1.spi(
+        (Some(sck), Some(miso), Some(mosi)),
+        MODE,
+        1.MHz(),
+        &rcc.clocks,
+    );
+    let itf = SpiInterface::new(spi).with_nss(nss).with_delay(|| {
+        delay.delay_ms(1_u16);
+    });
+    rst.set_high();
 
-        let ver = mfrc522.version().unwrap();
-        info!("MFRC522 version: 0x{:02x}", ver);
-        assert!(ver == 0x91 || ver == 0x92);
+    let mut mfrc522 = Mfrc522::new(itf).init().unwrap();
 
-        let mut timer = p.TIM1.counter_hz(&rcc.clocks);
-        timer.start(1.Hz()).unwrap();
+    let ver = mfrc522.version().unwrap();
+    info!("MFRC522 version: 0x{:02x}", ver);
+    assert!(ver == 0x91 || ver == 0x92);
 
-        loop {
-            info!("Waiting for card...");
-            match mfrc522.reqa() {
-                Ok(atqa) => {
-                    if let Ok(uid) = mfrc522.select(&atqa) {
-                        info!("Selected card, UID: {:02X}", uid.as_bytes());
-                    } else {
-                        error!("Failed to select card");
-                    }
-                }
-                Err(_e) => error!("Error when requesting ATQA!"),
-            }
-
-            nb::block!(timer.wait()).unwrap();
-        }
-    }
+    let mut timer = p.TIM1.counter_hz(&rcc.clocks);
+    timer.start(1.Hz()).unwrap();
 
     loop {
-        continue;
+        info!("Waiting for card...");
+        match mfrc522.reqa() {
+            Ok(atqa) => {
+                if let Ok(uid) = mfrc522.select(&atqa) {
+                    info!("Selected card, UID: {:02X}", uid.as_bytes());
+                } else {
+                    error!("Failed to select card");
+                }
+            }
+            Err(_e) => error!("Error when requesting ATQA!"),
+        }
+
+        nb::block!(timer.wait()).unwrap();
     }
 }

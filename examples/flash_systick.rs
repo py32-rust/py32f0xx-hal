@@ -21,40 +21,38 @@ static GPIO: Mutex<RefCell<Option<gpioa::PA5<Output<PushPull>>>>> = Mutex::new(R
 
 #[entry]
 fn main() -> ! {
-    if let (Some(mut p), Some(cp)) = (pac::Peripherals::take(), Peripherals::take()) {
-        cortex_m::interrupt::free(move |cs| {
-            let _rcc = p.RCC.configure().sysclk(24.MHz()).freeze(&mut p.FLASH);
+    let mut p = pac::Peripherals::take().unwrap();
+    let cp = Peripherals::take().unwrap();
+    let _rcc = p.RCC.configure().sysclk(24.MHz()).freeze(&mut p.FLASH);
 
-            let gpioa = p.GPIOA.split();
+    let gpioa = p.GPIOA.split();
 
-            // (Re-)configure PA5 as output
-            let led = gpioa.pa5.into_push_pull_output();
+    // (Re-)configure PA5 as output
+    let led = gpioa.pa5.into_push_pull_output();
 
-            // Transfer GPIO into a shared structure
-            *GPIO.borrow(cs).borrow_mut() = Some(led);
+    cortex_m::interrupt::free(move |cs| {
+        // Transfer GPIO into a shared structure
+        *GPIO.borrow(cs).borrow_mut() = Some(led);
+    });
 
-            let mut syst = cp.SYST;
+    let mut syst = cp.SYST;
 
-            // Initialise SysTick counter with a defined value
-            unsafe { syst.cvr.write(1) };
+    // Initialise SysTick counter with a defined value
+    unsafe { syst.cvr.write(1) };
 
-            // Set source for SysTick counter, here full operating frequency (== 48MHz)
-            syst.set_clock_source(Core);
+    // Set source for SysTick counter, here full operating frequency (== 48MHz)
+    syst.set_clock_source(Core);
 
-            // Set reload value, i.e. timer delay 24 MHz/2 Mcounts == 12Hz or 83ms
-            syst.set_reload(2_000_000 - 1);
+    // Set reload value, i.e. timer delay 24 MHz/2 Mcounts == 12Hz or 83ms
+    syst.set_reload(2_000_000 - 1);
 
-            // Start counting
-            syst.enable_counter();
+    // Start counting
+    syst.enable_counter();
 
-            // Enable interrupt generation
-            syst.enable_interrupt();
-        });
-    }
+    // Enable interrupt generation
+    syst.enable_interrupt();
 
-    loop {
-        continue;
-    }
+    loop {}
 }
 
 // Define an exception handler, i.e. function to call when exception occurs. Here, if our SysTick

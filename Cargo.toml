@@ -6,7 +6,6 @@ authors = [
     "Greg Green <ggreen@bit-builder.com>",
 ]
 edition = "2021"
-rust-version = "1.59"
 
 keywords = ["arm", "cortex-m", "py32f0xx", "hal"]
 license = "0BSD"

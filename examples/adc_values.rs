@@ -25,60 +25,54 @@ static SHARED: Mutex<RefCell<Option<Shared>>> = Mutex::new(RefCell::new(None));
 
 #[entry]
 fn main() -> ! {
-    if let (Some(dp), Some(cp)) = (
-        hal::pac::Peripherals::take(),
-        cortex_m::peripheral::Peripherals::take(),
-    ) {
-        cortex_m::interrupt::free(move |cs| {
-            let mut flash = dp.FLASH;
-            let rcc = dp.RCC.configure().sysclk(24.MHz()).freeze(&mut flash);
+    let dp = hal::pac::Peripherals::take().unwrap();
+    let cp = cortex_m::peripheral::Peripherals::take().unwrap();
+    cortex_m::interrupt::free(move |cs| {
+        let mut flash = dp.FLASH;
+        let rcc = dp.RCC.configure().sysclk(24.MHz()).freeze(&mut flash);
 
-            let gpioa = dp.GPIOA.split();
+        let gpioa = dp.GPIOA.split();
 
-            let mut syst = cp.SYST;
+        let mut syst = cp.SYST;
 
-            // Set source for SysTick counter, here full operating frequency (== 24MHz)
-            syst.set_clock_source(Core);
+        // Set source for SysTick counter, here full operating frequency (== 24MHz)
+        syst.set_clock_source(Core);
 
-            // Set reload value, i.e. timer delay 24 MHz/counts
-            syst.set_reload(24_000_000 - 1);
+        // Set reload value, i.e. timer delay 24 MHz/counts
+        syst.set_reload(24_000_000 - 1);
 
-            // Start SysTick counter
-            syst.enable_counter();
+        // Start SysTick counter
+        syst.enable_counter();
 
-            // Start SysTick interrupt generation
-            syst.enable_interrupt();
+        // Start SysTick interrupt generation
+        syst.enable_interrupt();
 
-            // USART1 at PA2 (TX) and PA3(RX)
-            let tx = gpioa.pa2.into_alternate_af1();
-            let _rx = gpioa.pa3.into_alternate_af1(); // don't need, can be removed
+        // USART1 at PA2 (TX) and PA3(RX)
+        let tx = gpioa.pa2.into_alternate_af1();
+        let _rx = gpioa.pa3.into_alternate_af1(); // don't need, can be removed
 
-            // Initialiase UART for transmission only
-            let mut tx = dp.USART1.tx(tx, 115_200.bps(), &rcc.clocks);
+        // Initialise UART for transmission only
+        let mut tx = dp.USART1.tx(tx, 115_200.bps(), &rcc.clocks);
 
-            // Initialise ADC
-            let adc = hal::adc::Adc::new(dp.ADC, hal::adc::AdcClockMode::default());
+        // Initialise ADC
+        let adc = hal::adc::Adc::new(dp.ADC, hal::adc::AdcClockMode::default());
 
-            let ain0 = gpioa.pa0.into_analog(); // ADC_IN0
-            let ain1 = gpioa.pa1.into_analog(); // ADC_IN1
+        let ain0 = gpioa.pa0.into_analog(); // ADC_IN0
+        let ain1 = gpioa.pa1.into_analog(); // ADC_IN1
 
-            // Output a friendly greeting
-            tx.write_str("\n\rThis ADC example will read various values using the ADC and print them out to the serial terminal\r\n").ok();
-            info!("\n\rThis ADC example will read various values using the ADC and print them out to the serial terminal\r\n");
+        // Output a friendly greeting
+        tx.write_str("\n\rThis ADC example will read various values using the ADC and print them out to the serial terminal\r\n").ok();
+        info!("\n\rThis ADC example will read various values using the ADC and print them out to the serial terminal\r\n");
 
-            // Move all components under Mutex supervision
-            *SHARED.borrow(cs).borrow_mut() = Some(Shared {
-                adc,
-                tx,
-                ain0,
-                ain1,
-            });
+        // Move all components under Mutex supervision
+        *SHARED.borrow(cs).borrow_mut() = Some(Shared {
+            adc,
+            tx,
+            ain0,
+            ain1,
         });
-    }
-
-    loop {
-        continue;
-    }
+    });
+    loop {}
 }
 
 #[exception]

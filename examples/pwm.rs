@@ -14,24 +14,23 @@ use hal::{pac, prelude::*, pwm};
 
 #[entry]
 fn main() -> ! {
-    if let Some(mut dp) = pac::Peripherals::take() {
-        // Set up the system clock.
-        let rcc = dp.RCC.configure().sysclk(8.MHz()).freeze(&mut dp.FLASH);
+    let mut dp = pac::Peripherals::take().unwrap();
+    // Set up the system clock.
+    let rcc = dp.RCC.configure().sysclk(24.MHz()).freeze(&mut dp.FLASH);
 
-        let gpioa = dp.GPIOA.split();
-        let channels = (
-            gpioa.pa8.into_alternate_af2(), // on TIM1_CH1
-            gpioa.pa9.into_alternate_af2(), // on TIM1_CH2
-        );
+    let gpioa = dp.GPIOA.split();
+    let channels = (
+        gpioa.pa8.into_alternate_af2(), // on TIM1_CH1
+        gpioa.pa9.into_alternate_af2(), // on TIM1_CH2
+    );
 
-        let pwm = pwm::tim1(dp.TIM1, channels, &rcc.clocks, 20.kHz());
-        let (mut ch1, mut ch2) = pwm;
-        let max_duty = ch1.get_max_duty();
-        ch1.set_duty(max_duty / 2);
-        ch1.enable();
-        ch2.set_duty(max_duty * 9 / 10);
-        ch2.enable();
-    }
+    let pwm = pwm::tim1(dp.TIM1, channels, &rcc.clocks, 20.kHz());
+    let (mut ch1, mut ch2) = pwm;
+    let max_duty = ch1.get_max_duty();
+    ch1.set_duty(max_duty / 2);
+    ch1.enable();
+    ch2.set_duty(max_duty * 9 / 10);
+    ch2.enable();
 
     loop {
         cortex_m::asm::nop();

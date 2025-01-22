@@ -604,7 +604,7 @@ impl CFGR {
             clocks: Clocks {
                 hclk: Hz(hclk),
                 pclk: Hz(pclk),
-                sysclk: Hz(sysclk),
+                sysclk: Hz(r_sysclk),
                 ppre,
             },
             regs: self.rcc,

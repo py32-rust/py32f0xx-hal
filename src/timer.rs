@@ -31,7 +31,7 @@
 
 use crate::pac::{self, DBG};
 use crate::rcc::{BusTimerClock, Clocks, Enable, Reset};
-use crate::time::{Hertz, Hz};
+use crate::time::Hertz;
 use core::convert::TryFrom;
 use cortex_m::peripheral::syst::SystClkSource;
 use cortex_m::peripheral::SYST;
@@ -166,23 +166,23 @@ impl Timer<SYST> {
         }
     }
 
-    /// Initialize SysTick timer and set it frequency to `HCLK / 8`
+    /// Initialize SysTick timer and set it frequency to `HCLK`
     pub fn syst_external(mut tim: SYST, clocks: &Clocks) -> Self {
         tim.set_clock_source(SystClkSource::External);
         Self {
             tim,
-            clk: Hz(clocks.hclk().raw() / 8),
+            clk: clocks.hclk(),
         }
     }
 
     pub fn configure(&mut self, clocks: &Clocks) {
         self.tim.set_clock_source(SystClkSource::Core);
-        self.clk = clocks.hclk();
+        self.clk = clocks.sysclk();
     }
 
     pub fn configure_external(&mut self, clocks: &Clocks) {
         self.tim.set_clock_source(SystClkSource::External);
-        self.clk = Hz(clocks.hclk().raw() / 8);
+        self.clk = clocks.hclk();
     }
 
     pub fn release(self) -> SYST {

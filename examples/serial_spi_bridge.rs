@@ -29,43 +29,39 @@ fn main() -> ! {
         phase: Phase::CaptureOnSecondTransition,
     };
 
-    if let Some(p) = pac::Peripherals::take() {
-        let mut flash = p.FLASH;
-        let rcc = p.RCC.configure().freeze(&mut flash);
+    let p = pac::Peripherals::take().unwrap();
+    let mut flash = p.FLASH;
+    let rcc = p.RCC.configure().freeze(&mut flash);
 
-        let gpioa = p.GPIOA.split();
+    let gpioa = p.GPIOA.split();
 
-        let (sck, miso, mosi, tx, rx) = (
-            // SPI pins
-            gpioa.pa5.into_alternate_af0(),
-            gpioa.pa6.into_alternate_af0(),
-            gpioa.pa7.into_alternate_af0(),
-            // USART pins
-            gpioa.pa2.into_alternate_af1(),
-            gpioa.pa3.into_alternate_af1(),
-        );
+    let (sck, miso, mosi, tx, rx) = (
+        // SPI pins
+        gpioa.pa5.into_alternate_af0(),
+        gpioa.pa6.into_alternate_af0(),
+        gpioa.pa7.into_alternate_af0(),
+        // USART pins
+        gpioa.pa2.into_alternate_af1(),
+        gpioa.pa3.into_alternate_af1(),
+    );
 
-        // Configure SPI with 1MHz rate
-        let mut spi = p.SPI1.spi(
-            (Some(sck), Some(miso), Some(mosi)),
-            MODE,
-            1.MHz().into(),
-            &rcc.clocks,
-        );
+    // Configure SPI with 1MHz rate
+    let mut spi = p.SPI1.spi(
+        (Some(sck), Some(miso), Some(mosi)),
+        MODE,
+        1.MHz(),
+        &rcc.clocks,
+    );
 
-        let mut serial = p.USART1.serial((tx, rx), 115_200.bps(), &rcc.clocks);
+    let mut serial = p.USART1.serial((tx, rx), 115_200.bps(), &rcc.clocks);
 
-        let mut datatx = [0];
-        let datarx = [0];
-        loop {
-            let serial_received = block!(serial.rx.read()).unwrap();
-            spi.write(&[serial_received]).ok();
-            spi.transfer(&mut datatx, &datarx).unwrap();
-            block!(serial.tx.write_u8(datarx[0])).ok();
-        }
-    }
+    let mut datatx = [0];
+    let datarx = [0];
 
     loop {
-        continue;
+        let serial_received = block!(serial.rx.read()).unwrap();
+        spi.write(&[serial_received]).ok();
+        spi.transfer(&mut datatx, &datarx).unwrap();
+        block!(serial.tx.write_u8(datarx[0])).ok();
     }
 }

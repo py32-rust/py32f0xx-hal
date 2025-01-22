@@ -42,7 +42,7 @@ fn main() -> ! {
     // initialization phase
     let mut p = pac::Peripherals::take().unwrap();
     let _cp = cortex_m::peripheral::Peripherals::take().unwrap();
-    let _rcc = p.RCC.configure().sysclk(8.MHz()).freeze(&mut p.FLASH);
+    let _rcc = p.RCC.configure().freeze(&mut p.FLASH);
     {
         // the scope ensures that the int_pin reference is dropped before the first ISR can be executed.
 
@@ -61,6 +61,7 @@ fn main() -> ! {
     unsafe {
         pac::NVIC::unmask(pac::Interrupt::EXTI4_15);
     }
+    cortex_m::peripheral::NVIC::unpend(pac::Interrupt::EXTI4_15);
 
     loop {}
 }
