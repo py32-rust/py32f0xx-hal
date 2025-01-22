@@ -1,11 +1,14 @@
+use crate::pac::rcc;
 use crate::pac::rcc::{
     cfgr::{MCOPRE_A, MCOSEL_A},
     cr::HSIDIV_A,
     icscr::HSI_FS_A,
 };
 
-use crate::pac::RCC;
-use crate::time::Hertz;
+use crate::pac::{DBG, PWR, RCC};
+use crate::time::{Hertz, Hz};
+
+mod enable;
 
 /// Extension trait that sets up the `RCC` peripheral
 pub trait RccExt {
@@ -32,10 +35,45 @@ pub struct Rcc {
 }
 
 impl Rcc {
+    /// Configure the Main Clock Output
+    /// set the MCO pin output source and prescalar
     pub fn configure_mco(&self, sel: MCOSrc, pre: MCODiv) {
         self.regs
             .cfgr
             .modify(|_, w| w.mcopre().variant(pre.into()).mcosel().variant(sel.into()));
+    }
+    /// Set the clock debug stop mode
+    /// false - fclk and hclk are disabled in stop mode (Identical to after reset)
+    /// true - fclk and hclk are not disabled in stop mode and set by hsi
+    pub fn debug_stop_mode(&mut self, dbg: DBG, set: bool) {
+        dbg.cr.write(|w| {
+            if set {
+                w.dbg_stop().enabled()
+            } else {
+                w.dbg_stop().disabled()
+            }
+        });
+    }
+}
+
+/// AMBA High-performance Bus (AHB) registers
+#[non_exhaustive]
+pub struct AHB;
+
+/// Advanced Peripheral Bus (APB) registers
+#[non_exhaustive]
+pub struct APB;
+
+impl APB {
+    /// Set power interface clock (PWREN) bit in RCC_APB1ENR
+    pub fn set_pwren() {
+        let rcc = unsafe { &*RCC::ptr() };
+        PWR::enable(rcc);
+    }
+    /// Disable debug clock (DBGEN) bit in RCC_APB1ENR
+    pub fn disable_dbg() {
+        let rcc = unsafe { &*RCC::ptr() };
+        DBG::disable(rcc);
     }
 }
 
@@ -46,7 +84,7 @@ pub enum MCOSrc {
     NoClock = 0,
     ///1: SYSCLK clock selected
     Sysclk = 1,
-    ///3: MSI oscillator clock selected
+    ///3: HSI oscillator clock selected
     Hsi = 3,
     ///4: HSE oscillator clock selected
     Hse = 4,
@@ -54,7 +92,6 @@ pub enum MCOSrc {
     Pll = 5,
     ///6: LSI oscillator clock selected
     Lsi = 6,
-
     #[cfg(feature = "py32f030")]
     ///7: LSE oscillator clock selected
     Lse = 7,
@@ -161,14 +198,15 @@ impl From<HSIFreq> for HSI_FS_A {
     }
 }
 
+#[derive(Clone, Copy)]
 pub enum HSEBypassMode {
     /// Not bypassed: for crystals
     NotBypassed,
     /// Bypassed: for external clock sources
     Bypassed,
 }
+
 /// RCC for F0x0 devices
-//#[cfg(any(feature = "py32f030", feature = "py32f003"))]
 mod inner {
     use crate::pac::{rcc::cfgr::SW_A, RCC};
 
@@ -301,6 +339,110 @@ mod inner {
     }
 }
 
+/// Frequency on bus that peripheral is connected in
+pub trait BusClock {
+    /// Calculates frequency depending on `Clock` state
+    fn clock(clocks: &Clocks) -> Hertz;
+}
+
+/// Frequency on bus that timer is connected in
+pub trait BusTimerClock {
+    /// Calculates base frequency of timer depending on `Clock` state
+    fn timer_clock(clocks: &Clocks) -> Hertz;
+}
+
+impl<T> BusClock for T
+where
+    T: RccBus,
+    T::Bus: BusClock,
+{
+    fn clock(clocks: &Clocks) -> Hertz {
+        T::Bus::clock(clocks)
+    }
+}
+
+impl<T> BusTimerClock for T
+where
+    T: RccBus,
+    T::Bus: BusTimerClock,
+{
+    fn timer_clock(clocks: &Clocks) -> Hertz {
+        T::Bus::timer_clock(clocks)
+    }
+}
+
+impl BusClock for AHB {
+    fn clock(clocks: &Clocks) -> Hertz {
+        clocks.hclk
+    }
+}
+
+impl BusClock for APB {
+    fn clock(clocks: &Clocks) -> Hertz {
+        clocks.pclk
+    }
+}
+
+impl BusTimerClock for APB {
+    fn timer_clock(clocks: &Clocks) -> Hertz {
+        clocks.pclk_tim()
+    }
+}
+
+/// Bus associated to peripheral
+pub trait RccBus: crate::Sealed {
+    /// Bus type;
+    type Bus;
+}
+
+/// Enable/disable peripheral
+pub trait Enable: RccBus {
+    fn enable(rcc: &rcc::RegisterBlock);
+    fn disable(rcc: &rcc::RegisterBlock);
+}
+/// Reset peripheral
+pub trait Reset: RccBus {
+    fn reset(rcc: &rcc::RegisterBlock);
+}
+
+/// Frozen clock frequencies
+///
+/// The existence of this value indicates that the clock configuration can no longer be changed
+#[derive(Clone, Copy)]
+pub struct Clocks {
+    hclk: Hertz,
+    pclk: Hertz,
+    sysclk: Hertz,
+    ppre: u8,
+}
+
+impl Clocks {
+    /// Returns the frequency of the AHB
+    pub const fn hclk(&self) -> Hertz {
+        self.hclk
+    }
+
+    /// Returns the system (core) frequency
+    pub const fn sysclk(&self) -> Hertz {
+        self.sysclk
+    }
+
+    /// Returns the frequency of the APB
+    pub const fn pclk(&self) -> Hertz {
+        self.pclk
+    }
+
+    /// Returns the frequency of the APB Timers
+    /// If pclk is prescaled from hclk, the frequency fed into the timers is doubled
+    pub const fn pclk_tim(&self) -> Hertz {
+        Hertz::from_raw(self.pclk.raw() * if self.ppre() == 1 { 1 } else { 2 })
+    }
+
+    pub(crate) const fn ppre(&self) -> u8 {
+        self.ppre
+    }
+}
+
 use self::inner::SysClkSource;
 
 pub struct CFGR {
@@ -317,7 +459,7 @@ impl CFGR {
     where
         F: Into<Hertz>,
     {
-        self.clock_src = SysClkSource::HSE(freq.into().0, bypass);
+        self.clock_src = SysClkSource::HSE(freq.into().raw(), bypass);
         self
     }
     #[cfg(feature = "py32f002b")]
@@ -325,7 +467,7 @@ impl CFGR {
     where
         F: Into<Hertz>,
     {
-        self.clock_src = SysClkSource::HSE(freq.into().0, HSEBypassMode::Bypassed);
+        self.clock_src = SysClkSource::HSE(freq.into().raw(), HSEBypassMode::Bypassed);
         self
     }
 
@@ -338,7 +480,7 @@ impl CFGR {
     where
         F: Into<Hertz>,
     {
-        self.hclk = Some(freq.into().0);
+        self.hclk = Some(freq.into().raw());
         self
     }
 
@@ -346,7 +488,7 @@ impl CFGR {
     where
         F: Into<Hertz>,
     {
-        self.pclk = Some(freq.into().0);
+        self.pclk = Some(freq.into().raw());
         self
     }
 
@@ -354,7 +496,7 @@ impl CFGR {
     where
         F: Into<Hertz>,
     {
-        self.sysclk = Some(freq.into().0);
+        self.sysclk = Some(freq.into().raw());
         self
     }
 
@@ -460,38 +602,12 @@ impl CFGR {
         }
         Rcc {
             clocks: Clocks {
-                hclk: Hertz(hclk),
-                pclk: Hertz(pclk),
-                sysclk: Hertz(sysclk),
+                hclk: Hz(hclk),
+                pclk: Hz(pclk),
+                sysclk: Hz(r_sysclk),
+                ppre,
             },
             regs: self.rcc,
         }
-    }
-}
-
-/// Frozen clock frequencies
-///
-/// The existence of this value indicates that the clock configuration can no longer be changed
-#[derive(Clone, Copy)]
-pub struct Clocks {
-    hclk: Hertz,
-    pclk: Hertz,
-    sysclk: Hertz,
-}
-
-impl Clocks {
-    /// Returns the frequency of the AHB
-    pub fn hclk(&self) -> Hertz {
-        self.hclk
-    }
-
-    /// Returns the frequency of the APB
-    pub fn pclk(&self) -> Hertz {
-        self.pclk
-    }
-
-    /// Returns the system (core) frequency
-    pub fn sysclk(&self) -> Hertz {
-        self.sysclk
     }
 }

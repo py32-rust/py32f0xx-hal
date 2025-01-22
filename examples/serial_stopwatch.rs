@@ -8,18 +8,16 @@ use py32f0xx_hal as hal;
 use crate::hal::{
     pac::{interrupt, Interrupt, Peripherals, TIM16},
     prelude::*,
-    serial::Serial,
-    timers::{Event, Timer},
+    timer::{CounterMs, Event},
 };
 use core::cell::RefCell;
 use core::fmt::Write as _;
 use core::ops::DerefMut;
-
 use cortex_m::{interrupt::Mutex, peripheral::Peripherals as c_m_Peripherals};
 use cortex_m_rt::entry;
 
 // Make timer interrupt registers globally available
-static GINT: Mutex<RefCell<Option<Timer<TIM16>>>> = Mutex::new(RefCell::new(None));
+static GINT: Mutex<RefCell<Option<CounterMs<TIM16>>>> = Mutex::new(RefCell::new(None));
 
 #[derive(Copy, Clone)]
 struct Time {
@@ -56,66 +54,64 @@ fn TIM16() {
 
 #[entry]
 fn main() -> ! {
-    if let (Some(p), Some(cp)) = (Peripherals::take(), c_m_Peripherals::take()) {
-        let mut serial = cortex_m::interrupt::free(move |cs| {
-            let mut flash = p.FLASH;
-            let mut rcc = p.RCC.configure().sysclk(24.mhz()).freeze(&mut flash);
+    let p = Peripherals::take().unwrap();
+    let cp = c_m_Peripherals::take().unwrap();
 
-            // Use USART1 with PA2 and PA3 as serial port
-            let gpioa = p.GPIOA.split(&mut rcc);
-            let tx = gpioa.pa2.into_alternate_af1(cs);
-            let rx = gpioa.pa3.into_alternate_af1(cs);
+    let mut flash = p.FLASH;
+    let rcc = p.RCC.configure().sysclk(24.MHz()).freeze(&mut flash);
 
-            // Set up a timer expiring every millisecond
-            let mut timer = Timer::tim16(p.TIM16, 1000.hz(), &mut rcc);
+    // Use USART1 with PA2 and PA3 as serial port
+    let gpioa = p.GPIOA.split();
+    let tx = gpioa.pa2.into_alternate_af1();
+    let rx = gpioa.pa3.into_alternate_af1();
 
-            // Generate an interrupt when the timer expires
-            timer.listen(Event::TimeOut);
+    // Set up a timer expiring every millisecond
+    let mut timer = p.TIM16.counter_ms(&rcc.clocks);
 
-            // Move the timer into our global storage
-            *GINT.borrow(cs).borrow_mut() = Some(timer);
+    // Generate an interrupt when the timer expires
+    timer.listen(Event::Update);
+    timer.start(1.millis()).unwrap();
 
-            // Enable TIM1 IRQ, set prio 1 and clear any pending IRQs
-            let mut nvic = cp.NVIC;
-            unsafe {
-                nvic.set_priority(Interrupt::TIM16, 1);
-                cortex_m::peripheral::NVIC::unmask(Interrupt::TIM16);
-            }
-            cortex_m::peripheral::NVIC::unpend(Interrupt::TIM16);
+    cortex_m::interrupt::free(|cs| {
+        // Move the timer into our global storage
+        *GINT.borrow(cs).borrow_mut() = Some(timer);
+    });
 
-            // Set up our serial port
-            Serial::usart1(p.USART1, (tx, rx), 115_200.bps(), &mut rcc)
-        });
-
-        // Print a welcome message
-        writeln!(
-            serial,
-            "Welcome to the stop watch, hit any key to see the current value and 0 to reset\r",
-        )
-        .ok();
-
-        loop {
-            // Wait for reception of a single byte
-            let received = nb::block!(serial.read()).unwrap();
-
-            let time = cortex_m::interrupt::free(|cs| {
-                let mut time = TIME.borrow(cs).borrow_mut();
-
-                // If we received a 0, reset the time
-                if received == b'0' {
-                    time.millis = 0;
-                    time.seconds = 0;
-                }
-
-                *time
-            });
-
-            // Print the current time
-            writeln!(serial, "{}.{:03}s\r", time.seconds, time.millis).ok();
-        }
+    // Enable TIM1 IRQ, set prio 1 and clear any pending IRQs
+    let mut nvic = cp.NVIC;
+    unsafe {
+        nvic.set_priority(Interrupt::TIM16, 1);
+        cortex_m::peripheral::NVIC::unmask(Interrupt::TIM16);
     }
+    cortex_m::peripheral::NVIC::unpend(Interrupt::TIM16);
+
+    // Set up our serial port
+    let mut serial = p.USART1.serial((tx, rx), 115_200.bps(), &rcc.clocks);
+
+    // Print a welcome message
+    writeln!(
+        serial,
+        "Welcome to the stop watch, hit any key to see the current value and 0 to reset\r",
+    )
+    .ok();
 
     loop {
-        continue;
+        // Wait for reception of a single byte
+        let received = nb::block!(serial.rx.read()).unwrap();
+
+        let time = cortex_m::interrupt::free(|cs| {
+            let mut time = TIME.borrow(cs).borrow_mut();
+
+            // If we received a 0, reset the time
+            if received == b'0' {
+                time.millis = 0;
+                time.seconds = 0;
+            }
+
+            *time
+        });
+
+        // Print the current time
+        writeln!(serial, "{}.{:03}s\r", time.seconds, time.millis).ok();
     }
 }

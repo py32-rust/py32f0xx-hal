@@ -1,15 +1,16 @@
 use core::ops::Deref;
 
-use embedded_hal::blocking::i2c::{Read, Write, WriteRead};
+use embedded_hal_02::blocking::i2c::{Read, Write, WriteRead};
 
 use crate::{
     gpio::*,
-    rcc::Rcc,
-    time::{Hertz, KiloHertz, U32Ext},
+    pac,
+    rcc::{Clocks, Enable, Reset},
+    time::{kHz, Hertz, KiloHertz},
 };
 
 /// I2C abstraction
-pub struct I2c<I2C, SCLPIN, SDAPIN> {
+pub struct I2c<I2C: Instance, SCLPIN, SDAPIN> {
     i2c: I2C,
     pins: (SCLPIN, SDAPIN),
 }
@@ -75,6 +76,7 @@ i2c_pins! {
 }
 
 #[derive(Debug)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum Error {
     OVERRUN,
     NACK,
@@ -82,23 +84,38 @@ pub enum Error {
     PEC,
 }
 
+// It's s needed for the impls, but rustc doesn't recognize that
+#[allow(dead_code)]
+type I2cRegisterBlock = crate::pac::i2c::RegisterBlock;
+
+pub trait Instance: Deref<Target = I2cRegisterBlock> + crate::Sealed + Enable + Reset {
+    #[doc(hidden)]
+    fn ptr() -> *const I2cRegisterBlock;
+}
+
 macro_rules! i2c {
-    ($($I2C:ident: ($i2c:ident, $i2cXen:ident, $i2cXrst:ident, $apbenr:ident, $apbrstr:ident),)+) => {
+    ($($I2C:ident: $i2c:ident,)+) => {
         $(
             use crate::pac::$I2C;
+            impl Instance for $I2C {
+                fn ptr() -> *const I2cRegisterBlock {
+                    <$I2C>::ptr()
+                }
+            }
+
             impl<SCLPIN, SDAPIN> I2c<$I2C, SCLPIN, SDAPIN> {
-                pub fn $i2c(i2c: $I2C, pins: (SCLPIN, SDAPIN), speed: KiloHertz, rcc: &mut Rcc) -> Self
+                pub fn $i2c(i2c: $I2C, pins: (SCLPIN, SDAPIN), speed: KiloHertz, clocks: &Clocks) -> Self
                 where
                     SCLPIN: SclPin<$I2C>,
                     SDAPIN: SdaPin<$I2C>,
                 {
+                    let rcc = unsafe { &(*pac::RCC::ptr()) };
                     // Enable clock for I2C
-                    rcc.regs.$apbenr.modify(|_, w| w.$i2cXen().set_bit());
+                    $I2C::enable(rcc);
 
                     // Reset I2C
-                    rcc.regs.$apbrstr.modify(|_, w| w.$i2cXrst().set_bit());
-                    rcc.regs.$apbrstr.modify(|_, w| w.$i2cXrst().clear_bit());
-                    I2c { i2c, pins }.i2c_init(rcc.clocks.pclk(), speed)
+                    $I2C::reset(rcc);
+                    I2c { i2c, pins }.i2c_init(clocks.pclk(), speed)
                 }
             }
         )+
@@ -106,39 +123,35 @@ macro_rules! i2c {
 }
 
 i2c! {
-    I2C: (i2c, i2cen, i2crst, apbenr1, apbrstr1),
+    I2C: i2c,
 }
-
-// It's s needed for the impls, but rustc doesn't recognize that
-#[allow(dead_code)]
-type I2cRegisterBlock = crate::pac::i2c::RegisterBlock;
 
 impl<I2C, SCLPIN, SDAPIN> I2c<I2C, SCLPIN, SDAPIN>
 where
-    I2C: Deref<Target = I2cRegisterBlock>,
+    I2C: Instance,
 {
     fn i2c_init(self, freq: Hertz, speed: KiloHertz) -> Self {
         // Make sure the I2C unit is disabled so we can configure it
         self.i2c.cr1.modify(|_, w| w.pe().clear_bit());
 
-        let f = freq.0 / 1_000_000;
+        let f = freq.raw() / 1_000_000;
 
         self.i2c
             .cr2
             .write(|w| unsafe { w.freq().bits(f.clamp(4, 48) as u8) });
 
         // Normal I2C speeds use a different scaling than fast mode below
-        let (f_s, ccr) = if speed <= 100_u32.khz() {
+        let (f_s, ccr) = if speed <= kHz(100) {
             // This is a normal I2C mode
-            (false, freq.0 / (speed.0 * 2))
+            (false, freq.raw() / (speed.raw() * 2))
         } else {
             // This is a fast I2C mode
             (
                 true,
                 if self.i2c.ccr.read().duty().bit_is_set() {
-                    freq.0 / (speed.0 * 25)
+                    freq.raw() / (speed.raw() * 25)
                 } else {
-                    freq.0 / (speed.0 * 3)
+                    freq.raw() / (speed.raw() * 3)
                 },
             )
         };
@@ -219,7 +232,7 @@ where
 
 impl<I2C, SCLPIN, SDAPIN> WriteRead for I2c<I2C, SCLPIN, SDAPIN>
 where
-    I2C: Deref<Target = I2cRegisterBlock>,
+    I2C: Instance,
 {
     type Error = Error;
 
@@ -276,7 +289,7 @@ where
 
 impl<I2C, SCLPIN, SDAPIN> Read for I2c<I2C, SCLPIN, SDAPIN>
 where
-    I2C: Deref<Target = I2cRegisterBlock>,
+    I2C: Instance,
 {
     type Error = Error;
 
@@ -304,7 +317,7 @@ where
 
 impl<I2C, SCLPIN, SDAPIN> Write for I2c<I2C, SCLPIN, SDAPIN>
 where
-    I2C: Deref<Target = I2cRegisterBlock>,
+    I2C: Instance,
 {
     type Error = Error;
 

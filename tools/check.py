@@ -16,7 +16,7 @@ def run(mcu, cargo_cmd):
     if mcu == "":
         return run_inner(cargo_cmd)
     else:
-        return run_inner(cargo_cmd + ["--examples", "--features={}".format(mcu)])
+        return run_inner(cargo_cmd + ["--features={}".format(mcu)])
 
 
 def main():
@@ -27,14 +27,20 @@ def main():
         )
 
     crate_info = cargo_meta["packages"][0]
-
     features = [
-        "{},rt,py32-usbd".format(x)
+        "{},defmt,rt,rtic".format(x)
         for x in crate_info["features"].keys()
         if x != "device-selected"
         and x != "rt"
+        and x != "rtic"
+        and x != "defmt"
+        and x != "with-dma"
         and x != "py32f030"
-        and x != "py32-usbd"
+        and x != "py32f003"
+        and x != "py32f002a"
+        and x != "py32f002b"
+        and not x.startswith("flash")
+        and not x.startswith("ram")
     ]
 
     if 'size_check' in sys.argv:
@@ -49,4 +55,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

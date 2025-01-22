@@ -31,20 +31,20 @@
 //! use crate::hal::pac;
 //! use crate::hal::prelude::*;
 //! use crate::hal:watchdog::Watchdog;
-//! use crate::hal:time::Hertz;
 //!
 //! let mut p = pac::Peripherals::take().unwrap();
+//! let mut rcc = p.RCC.configure().sysclk(8.MHz()).freeze(&mut p.FLASH);
 //!
-//! let mut iwdg = Watchdog::new(p.iwdg);
-//! iwdg.start(Hertz(100));
+//! let mut iwdg = Watchdog::new(&mut rcc, p.iwdg);
+//! iwdg.start(100.Hz());
 //! loop {}
 //! // Whoops, got stuck, the watchdog issues a reset after 10 ms
 //! iwdg.feed();
 //! ```
-use embedded_hal::watchdog;
+use embedded_hal_02::watchdog;
 
-use crate::rcc::Rcc;
 use crate::pac::IWDG;
+use crate::rcc::Rcc;
 use crate::time::Hertz;
 
 /// Watchdog instance
@@ -73,7 +73,7 @@ impl From<Hertz> for IwdgTimeout {
     ///
     /// It can also only represent values < 10000 Hertz
     fn from(hz: Hertz) -> Self {
-        let mut time = 32_768 / 4 / hz.0;
+        let mut time = 32_768 / 4 / hz.raw();
         let mut psc = 0;
         let mut reload = 0;
         while psc < 7 {

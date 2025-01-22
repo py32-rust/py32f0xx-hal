@@ -7,25 +7,16 @@ use panic_probe as _;
 use py32f0xx_hal as hal;
 
 use crate::hal::{
-    delay::Delay,
     pac,
     prelude::*,
-    serial::Serial,
-    spi::Spi,
     spi::{Mode, Phase, Polarity},
-    time::Hertz,
-    timers::Timer,
 };
-
-use nb::block;
-
 use cortex_m_rt::entry;
-
 use defmt::{error, info};
+use embedded_hal_02::blocking::delay::DelayMs;
 
-use mfrc522::comm::{eh02::spi::SpiInterface, Interface};
-use mfrc522::error::Error;
-use mfrc522::{Initialized, Mfrc522, Uid};
+use mfrc522::comm::eh02::spi::SpiInterface;
+use mfrc522::Mfrc522;
 
 /// A basic serial to spi example
 ///
@@ -40,63 +31,61 @@ fn main() -> ! {
         phase: Phase::CaptureOnSecondTransition,
     };
 
-    if let (Some(p), Some(cp)) = (
-        pac::Peripherals::take(),
-        cortex_m::peripheral::Peripherals::take(),
-    ) {
-        let mut flash = p.FLASH;
-        let mut rcc = p.RCC.configure().freeze(&mut flash);
+    let p = pac::Peripherals::take().unwrap();
+    let cp = cortex_m::Peripherals::take().unwrap();
 
-        let mut delay = Delay::new(cp.SYST, &rcc);
+    let mut flash = p.FLASH;
+    let rcc = p.RCC.configure().freeze(&mut flash);
 
-        let gpioa = p.GPIOA.split(&mut rcc);
+    let mut delay = cp.SYST.delay(&rcc.clocks);
 
-        let (sck, miso, mosi, mut nss, mut rst) = cortex_m::interrupt::free(move |cs| {
-            (
-                // SPI pins
-                gpioa.pa5.into_alternate_af0(cs),
-                gpioa.pa6.into_alternate_af0(cs),
-                gpioa.pa7.into_alternate_af0(cs),
-                // Aux pins
-                gpioa.pa4.into_push_pull_output(cs),
-                gpioa.pa1.into_push_pull_output(cs),
-            )
-        });
-        rst.set_low();
+    let gpioa = p.GPIOA.split();
 
-        // Configure SPI with 1MHz rate
-        let mut spi = Spi::spi1(p.SPI1, (sck, miso, mosi), MODE, 1.mhz(), &mut rcc);
-        let itf = SpiInterface::new(spi).with_nss(nss).with_delay(|| {
-            delay.delay_ms(1_u16);
-        });
-        rst.set_high();
+    let (sck, miso, mosi, nss, mut rst) = (
+        // SPI pins
+        gpioa.pa5.into_alternate_af0(),
+        gpioa.pa6.into_alternate_af0(),
+        gpioa.pa7.into_alternate_af0(),
+        // Aux pins
+        gpioa.pa4.into_push_pull_output(),
+        gpioa.pa1.into_push_pull_output(),
+    );
+    rst.set_low();
 
-        let mut mfrc522 = Mfrc522::new(itf).init().unwrap();
+    // Configure SPI with 1MHz rate
+    let spi = p.SPI1.spi(
+        (Some(sck), Some(miso), Some(mosi)),
+        MODE,
+        1.MHz(),
+        &rcc.clocks,
+    );
+    let itf = SpiInterface::new(spi).with_nss(nss).with_delay(|| {
+        delay.delay_ms(1_u16);
+    });
+    rst.set_high();
 
-        let ver = mfrc522.version().unwrap();
-        info!("MFRC522 version: 0x{:02x}", ver);
-        assert!(ver == 0x91 || ver == 0x92);
+    let mut mfrc522 = Mfrc522::new(itf).init().unwrap();
 
-        let mut timer = Timer::tim1(p.TIM1, Hertz(1), &mut rcc);
+    let ver = mfrc522.version().unwrap();
+    info!("MFRC522 version: 0x{:02x}", ver);
+    assert!(ver == 0x91 || ver == 0x92);
 
-        loop {
-            info!("Waiting for card...");
-            match mfrc522.reqa() {
-                Ok(atqa) => {
-                    if let Ok(uid) = mfrc522.select(&atqa) {
-                        info!("Selected card, UID: {:02X}", uid.as_bytes());
-                    } else {
-                        error!("Failed to select card");
-                    }
-                }
-                Err(e) => error!("Error when requesting ATQA!"),
-            }
-
-            nb::block!(timer.wait()).unwrap();
-        }
-    }
+    let mut timer = p.TIM1.counter_hz(&rcc.clocks);
+    timer.start(1.Hz()).unwrap();
 
     loop {
-        continue;
+        info!("Waiting for card...");
+        match mfrc522.reqa() {
+            Ok(atqa) => {
+                if let Ok(uid) = mfrc522.select(&atqa) {
+                    info!("Selected card, UID: {:02X}", uid.as_bytes());
+                } else {
+                    error!("Failed to select card");
+                }
+            }
+            Err(_e) => error!("Error when requesting ATQA!"),
+        }
+
+        nb::block!(timer.wait()).unwrap();
     }
 }

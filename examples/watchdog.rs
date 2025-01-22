@@ -5,55 +5,53 @@ use panic_halt as _;
 
 use py32f0xx_hal as hal;
 
-use crate::hal::{delay::Delay, pac, prelude::*, serial::Serial, time::Hertz, watchdog::Watchdog};
-
+use crate::hal::{pac, prelude::*, watchdog};
+use core::fmt::Write;
 use cortex_m::peripheral::Peripherals;
 use cortex_m_rt::entry;
-
-use core::fmt::Write;
+use embedded_hal_02::blocking::delay::DelayMs;
+use embedded_hal_02::watchdog::{Watchdog, WatchdogEnable};
 
 #[entry]
 fn main() -> ! {
-    if let (Some(p), Some(cp)) = (pac::Peripherals::take(), Peripherals::take()) {
-        let mut flash = p.FLASH;
-        let mut rcc = p.RCC.configure().sysclk(8.mhz()).freeze(&mut flash);
+    let p = pac::Peripherals::take().unwrap();
+    let cp = Peripherals::take().unwrap();
 
-        let gpioa = p.GPIOA.split(&mut rcc);
-        let dbg = p.DBG;
+    let mut flash = p.FLASH;
+    let mut rcc = p.RCC.configure().sysclk(24.MHz()).freeze(&mut flash);
 
-        // Disable the watchdog when the cpu is stopped under debug
-        dbg.apb_fz1.modify(|_, w| w.dbg_iwdg_stop().set_bit());
+    let gpioa = p.GPIOA.split();
+    let dbg = p.DBG;
 
-        let mut watchdog = Watchdog::new(&mut rcc, p.IWDG);
+    // Disable the watchdog when the cpu is stopped under debug
+    dbg.apb_fz1.modify(|_, w| w.dbg_iwdg_stop().set_bit());
 
-        // Get delay provider
-        let mut delay = Delay::new(cp.SYST, &rcc);
+    let mut watchdog = watchdog::Watchdog::new(&mut rcc, p.IWDG);
 
-        // Configure serial TX pin
-        let tx = cortex_m::interrupt::free(move |cs| gpioa.pa2.into_alternate_af1(cs));
+    // Get delay provider
+    let mut delay = cp.SYST.delay(&rcc.clocks);
 
-        // Obtain a serial peripheral with for unidirectional communication
-        let mut serial = Serial::usart1tx(p.USART1, tx, 115_200.bps(), &mut rcc);
+    // Configure serial TX pin
+    let tx = gpioa.pa2.into_alternate_af1();
 
-        serial.write_str("RESET \r\n").ok();
+    // Obtain a serial peripheral with unidirectional communication
+    let mut serial = p.USART1.tx(tx, 115_200.bps(), &rcc.clocks);
 
-        watchdog.start(Hertz(1));
-        delay.delay_ms(500_u16);
-        watchdog.feed();
-        serial.write_str("Feed the dog 1st\r\n").ok();
-        delay.delay_ms(500_u16);
-        watchdog.feed();
-        serial.write_str("Feed the dog 2nd\r\n").ok();
-        delay.delay_ms(500_u16);
-        watchdog.feed();
-        serial.write_str("Feed the dog 3rd\r\n").ok();
+    serial.write_str("RESET \r\n").ok();
 
-        // Now a reset happens while delaying
-        delay.delay_ms(1500_u16);
-        serial.write_str("This won't\r\n").ok();
-    }
+    watchdog.start(1.Hz());
+    delay.delay_ms(500_u16);
+    watchdog.feed();
+    serial.write_str("Feed the dog 1st\r\n").ok();
+    delay.delay_ms(500_u16);
+    watchdog.feed();
+    serial.write_str("Feed the dog 2nd\r\n").ok();
+    delay.delay_ms(500_u16);
+    watchdog.feed();
+    serial.write_str("Feed the dog 3rd\r\n").ok();
 
-    loop {
-        continue;
-    }
+    // Now a reset happens while delaying
+    delay.delay_ms(1500_u16);
+    serial.write_str("This won't\r\n").ok();
+    loop {}
 }

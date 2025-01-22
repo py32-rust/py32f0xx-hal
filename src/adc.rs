@@ -12,29 +12,27 @@
 //! use crate::hal::prelude::*;
 //! use crate::hal::adc::Adc;
 //!
-//! cortex_m::interrupt::free(|cs| {
-//!     let mut p = pac::Peripherals::take().unwrap();
-//!     let mut rcc = p.RCC.configure().freeze(&mut p.FLASH);
+//! let mut p = pac::Peripherals::take().unwrap();
+//! let rcc = p.RCC.configure().freeze(&mut p.FLASH);
 //!
-//!     let gpioa = p.GPIOA.split(&mut rcc);
+//! let gpioa = p.GPIOA.split();
 //!
-//!     let mut led = gpioa.pa1.into_push_pull_pull_output(cs);
-//!     let mut an_in = gpioa.pa0.into_analog(cs);
+//! let mut led = gpioa.pa1.into_push_pull_pull_output();
+//! let mut an_in = gpioa.pa0.into_analog();
 //!
-//!     let mut delay = Delay::new(cp.SYST, &rcc);
+//! let mut delay = Delay::new(cp.SYST, &rcc);
 //!
-//!     let mut adc = Adc::new(p.ADC, &mut rcc);
+//! let mut adc = Adc::new(p.ADC);
 //!
-//!     loop {
-//!         let val: u16 = adc.read(&mut an_in).unwrap();
-//!         if val < ((1 << 8) - 1) {
-//!             led.set_low();
-//!         } else {
-//!             led.set_high();
-//!         }
-//!         delay.delay_ms(50_u16);
+//! loop {
+//!     let val: u16 = adc.read(&mut an_in).unwrap();
+//!     if val < ((1 << 8) - 1) {
+//!         led.set_low();
+//!     } else {
+//!         led.set_high();
 //!     }
-//! });
+//!     delay.delay_ms(50_u16);
+//! }
 //! ```
 
 // const VREFCAL: *const u16 = 0x1FFF_0F1A as *const u16;
@@ -47,23 +45,20 @@ const VTEMPVAL_DELTA: u16 = VTEMPVAL_HIGH - VTEMPVAL_LOW;
 
 use core::ptr;
 
-use embedded_hal::{
-    adc::{Channel, OneShot},
-    blocking::delay::DelayUs,
-};
+use embedded_hal_02::adc::{Channel, OneShot};
+use embedded_hal_02::blocking::delay::DelayUs;
 
 use crate::{
-    delay::Delay,
     gpio::*,
     pac::{
         adc::{
             cfgr1::{ALIGN_A, RES_A},
-            smpr::SMP_A,
             cfgr2::CKMODE_A,
+            smpr::SMP_A,
         },
-        ADC,
+        ADC, RCC,
     },
-    rcc::Rcc,
+    rcc::{Enable, Reset},
 };
 
 /// Analog to Digital converter interface
@@ -74,9 +69,9 @@ pub struct Adc {
     precision: AdcPrecision,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
 /// ADC Clock mode, select adc clock source
 ///
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum AdcClockMode {
     /// PCLK
     Pclk,
@@ -136,10 +131,10 @@ impl From<AdcClockMode> for CKMODE_A {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
 /// ADC Sampling time
 ///
 /// Options for the sampling time, each is T + 0.5 ADC clock cycles.
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum AdcSampleTime {
     /// 3.5 cycles sampling time
     T_3,
@@ -181,8 +176,8 @@ impl From<AdcSampleTime> for SMP_A {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
 /// ADC Result Alignment
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum AdcAlign {
     /// Left aligned results (most significant bits)
     ///
@@ -221,8 +216,8 @@ impl From<AdcAlign> for ALIGN_A {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
 /// ADC Sampling Precision
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum AdcPrecision {
     /// 12 bit precision
     B_12,
@@ -318,7 +313,8 @@ impl VTemp {
     fn convert_temp(vtemp: u16) -> i16 {
         let vtempcal_low = unsafe { ptr::read(VTEMPCAL_LOW) } as i32;
         let vtempcal_high = unsafe { ptr::read(VTEMPCAL_HIGH) } as i32;
-        ((vtemp as i32 - vtempcal_low) * 100 * (VTEMPVAL_DELTA as i32) / (vtempcal_high - vtempcal_low)
+        ((vtemp as i32 - vtempcal_low) * 100 * (VTEMPVAL_DELTA as i32)
+            / (vtempcal_high - vtempcal_low)
             + 3000) as i16
     }
 
@@ -328,7 +324,7 @@ impl VTemp {
     /// Given a delay reference it will attempt to restrict to the
     /// minimum delay needed to ensure a 10 us t<sub>START</sub> value.
     /// Otherwise it will approximate the required delay using ADC reads.
-    pub fn read(adc: &mut Adc, delay: Option<&mut Delay>) -> i16 {
+    pub fn read(adc: &mut Adc, delay: Option<&mut dyn DelayUs<u32>>) -> i16 {
         let mut vtemp = Self::new();
         let vtemp_preenable = vtemp.is_enabled(adc);
 
@@ -336,7 +332,7 @@ impl VTemp {
             vtemp.enable(adc);
 
             if let Some(dref) = delay {
-                dref.delay_us(2_u16);
+                dref.delay_us(2);
             } else {
                 // Double read of vdda to allow sufficient startup time for the temp sensor
                 VRef::read_vdda(adc);
@@ -397,7 +393,7 @@ impl VRef {
         };
 
         adc.restore_cfg(prev_cfg);
-        
+
         ((u32::from(VREFINT_VAL) * 4095) / vref_val) as u16
     }
 }
@@ -412,14 +408,14 @@ impl Adc {
     /// Sets all configurable parameters to defaults, enables the HSI14 clock
     /// for the ADC if it is not already enabled and performs a boot time
     /// calibration. As such this method may take an appreciable time to run.
-    pub fn new(adc: ADC, rcc: &mut Rcc, ckmode: AdcClockMode) -> Self {
+    pub fn new(adc: ADC, ckmode: AdcClockMode) -> Self {
         let mut s = Self {
             rb: adc,
             sample_time: AdcSampleTime::default(),
             align: AdcAlign::default(),
             precision: AdcPrecision::default(),
         };
-        s.select_clock(rcc, ckmode);
+        s.select_clock(ckmode);
         s.calibrate();
         s
     }
@@ -502,7 +498,8 @@ impl Adc {
         }
         while self.rb.cr.read().aden().is_enabled() {}
 
-        #[cfg(any(feature = "py32f030", feature = "py32f003"))]
+        // get and save DMAEN and DMACFG
+        #[cfg(feature = "with-dma")]
         let (dmacfg, dmaen) = {
             let dmacfg = self.rb.cfgr1.read().dmacfg().bit();
             let dmaen = self.rb.cfgr1.read().dmaen().is_enabled();
@@ -511,7 +508,8 @@ impl Adc {
         };
 
         /* Clear DMAEN */
-        // self.rb.cfgr1.modify(|_, w| w.dmaen().disabled());
+        #[cfg(feature = "with-dma")]
+        self.rb.cfgr1.modify(|_, w| w.dmaen().disabled());
 
         /* Start calibration by setting ADCAL */
         self.rb.cr.modify(|_, w| w.adcal().start_calibration());
@@ -519,15 +517,20 @@ impl Adc {
         /* Wait until calibration is finished and ADCAL = 0 */
         while self.rb.cr.read().adcal().is_calibrating() {}
 
-        #[cfg(any(feature = "py32f030", feature = "py32f003"))]
-        self.rb.cfgr1.modify(|_, w| w.dmacfg().bit(dmacfg).dmaen().bit(dmaen));
+        // restore DMAEN and DMACFG to original values
+        #[cfg(feature = "with-dma")]
+        self.rb
+            .cfgr1
+            .modify(|_, w| w.dmacfg().bit(dmacfg).dmaen().bit(dmaen));
     }
 
-    fn select_clock(&mut self, rcc: &mut Rcc, ckmode: AdcClockMode) {
-        rcc.regs.apbrstr2.modify(|_, w| w.adcrst().reset());
-        rcc.regs.apbrstr2.modify(|_, w| w.adcrst().clear_bit());
-        rcc.regs.apbenr2.modify(|_, w| w.adcen().enabled());
-        self.rb.cfgr2.modify(|_, w| w.ckmode().variant(ckmode.into()));
+    fn select_clock(&mut self, ckmode: AdcClockMode) {
+        let rcc = unsafe { &(*RCC::ptr()) };
+        ADC::reset(rcc);
+        ADC::enable(rcc);
+        self.rb
+            .cfgr2
+            .modify(|_, w| w.ckmode().variant(ckmode.into()));
     }
 
     /// Apply config settings
@@ -540,9 +543,9 @@ impl Adc {
                 .variant(self.precision.into())
                 .align()
                 .variant(self.align.into())
-                .wait().disabled()
+                .wait()
+                .disabled()
         });
-
     }
 
     fn power_up(&mut self, chan: u8) {

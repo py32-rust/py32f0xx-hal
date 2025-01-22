@@ -11,46 +11,38 @@ use crate::hal::{
     pac,
     prelude::*,
     rcc::{HSIFreq, MCODiv, MCOSrc},
-    serial::Serial,
 };
 
 use cortex_m_rt::entry;
+use embedded_hal_02::serial::{Read, Write as OtherWrite};
 
 #[entry]
 fn main() -> ! {
-    if let Some(p) = pac::Peripherals::take() {
-        let mut flash = p.FLASH;
-        let mut rcc = p
-            .RCC
-            .configure()
-            .hsi(HSIFreq::Freq24mhz)
-            .sysclk(24.mhz())
-            .freeze(&mut flash);
+    let p = pac::Peripherals::take().unwrap();
+    let mut flash = p.FLASH;
+    let rcc = p
+        .RCC
+        .configure()
+        .hsi(HSIFreq::Freq24mhz)
+        .sysclk(24.MHz())
+        .freeze(&mut flash);
+    rcc.configure_mco(MCOSrc::Sysclk, MCODiv::NotDivided);
 
-        rcc.configure_mco(MCOSrc::Sysclk, MCODiv::NotDivided);
+    let gpioa = p.GPIOA.split();
 
-        let gpioa = p.GPIOA.split(&mut rcc);
+    let (tx, rx) = (
+        gpioa.pa2.into_alternate_af1(),
+        gpioa.pa3.into_alternate_af1(),
+    );
 
-        let (tx, rx) = cortex_m::interrupt::free(move |cs| {
-            (
-                gpioa.pa2.into_alternate_af1(cs),
-                gpioa.pa3.into_alternate_af1(cs),
-            )
-        });
-
-        let mut serial = Serial::usart1(p.USART1, (tx, rx), 115_200.bps(), &mut rcc);
-        serial.write_str("Input any key:\n").ok();
-
-        loop {
-            // Wait for reception of a single byte
-            let received = nb::block!(serial.read()).unwrap();
-
-            // Send back previously received byte and wait for completion
-            nb::block!(serial.write(received)).ok();
-        }
-    }
+    let mut serial = p.USART1.serial((tx, rx), 115_200.bps(), &rcc.clocks);
+    serial.write_str("Input any key:\r\n").ok();
 
     loop {
-        continue;
+        // Wait for reception of a single byte
+        let received: u8 = nb::block!(serial.read()).unwrap();
+
+        // Send back previously received byte and wait for completion
+        nb::block!(serial.write(received)).ok();
     }
 }

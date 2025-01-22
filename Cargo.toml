@@ -1,20 +1,19 @@
 [package]
-edition = "2018"
+name = "py32f0xx-hal"
+version = "0.2.0"
 authors = [
-    "Daniel Egger <daniel@eggers-club.de>",
-    "Thomas Bytheway <github@harkonen.net>",
-    "Jesse Braham <jesse@beta7.io>",
+    "creatoy@yeah.net",
+    "Greg Green <ggreen@bit-builder.com>",
 ]
-categories = ["embedded", "hardware-support", "no-std"]
-description = "Peripheral access API for py32F0 series microcontrollers"
-documentation = "https://docs.rs/crate/py32f0xx-hal"
+edition = "2021"
 
 keywords = ["arm", "cortex-m", "py32f0xx", "hal"]
 license = "0BSD"
-name = "py32f0xx-hal"
 readme = "README.md"
-repository = "https://github.com/creatoy/py32f0xx-hal"
-version = "0.1.1"
+repository = "https://github.com/py32-rust/py32f0xx-hal"
+categories = ["embedded", "hardware-support", "no-std"]
+description = "Peripheral access API for py32F0 series microcontrollers"
+documentation = "https://docs.rs/crate/py32f0xx-hal"
 
 [package.metadata.docs.rs]
 features = ["py32f030", "rt"]
@@ -24,14 +23,24 @@ targets = ["thumbv6m-none-eabi"]
 bare-metal = { version = "1.0.0" }
 cast = "0.3.0"
 cortex-m = { version = "0.7.7", features = ["critical-section-single-core"] }
-embedded-hal = { version = "0.2.7", features = ["unproven"] }
+py32f0 = "0.2.0"
+embedded-hal = "1.0"
+embedded-hal-nb = "1.0"
+embedded-dma = "0.2.0"
+embedded-io = "0.6.1"
 embedded-time = "0.12.1"
 nb = "1.1.0"
 void = { version = "1.0.2", default-features = false }
+defmt = { version = "0.3.8", optional = true }
+bitflags = "1.3.2"
+fugit = "0.3.7"
+fugit-timer = "0.1.3"
+rtic-monotonic = { version = "1.0", optional = true }
 
-[dependencies.py32f0]
-version = "0.1.1"
-features = []
+[dependencies.embedded-hal-02]
+package = "embedded-hal"
+version = "0.2.7"
+features = ["unproven"]
 
 [dev-dependencies]
 cortex-m-rt = "0.7.3"
@@ -44,10 +53,12 @@ mfrc522 = "0.6.1"
 [features]
 device-selected = []
 rt = ["py32f0/rt"]
-py32f030 = ["py32f0/py32f030", "device-selected"]
-py32f003 = ["py32f0/py32f003", "device-selected"]
+py32f030 = ["py32f0/py32f030", "device-selected", "with-dma"]
+py32f003 = ["py32f0/py32f003", "device-selected", "with-dma"]
 py32f002a = ["py32f0/py32f002a", "device-selected"]
 py32f002b = ["py32f0/py32f002b", "device-selected"]
+
+defmt = ["dep:defmt"]
 
 # Features based on Flash size (in kbytes)
 flash-16 = []
@@ -63,6 +74,9 @@ ram-3 = []
 ram-4 = []
 ram-6 = []
 ram-8 = []
+
+# optional peripherals
+with-dma = []
 
 # MCU aliases
 #
@@ -80,6 +94,9 @@ py32f003xx8 = ["py32f003", "flash-64", "ram-8"]
 
 py32f002ax5 = ["py32f002a", "flash-20", "ram-3"]
 py32f002bx5 = ["py32f002b", "flash-24", "ram-3"]
+
+# rtic os
+rtic = ["dep:rtic-monotonic"]
 
 [profile.dev]
 debug = true
