@@ -1,6 +1,6 @@
 [package]
 name = "py32f0xx-hal"
-version = "0.2.0"
+version = "0.2.1"
 authors = [
     "creatoy@yeah.net",
     "Greg Green <ggreen@bit-builder.com>",
@@ -23,7 +23,7 @@ targets = ["thumbv6m-none-eabi"]
 bare-metal = { version = "1.0.0" }
 cast = "0.3.0"
 cortex-m = { version = "0.7.7", features = ["critical-section-single-core"] }
-py32f0 = "0.2.0"
+py32f0 = "= 0.2.0"
 embedded-hal = "1.0"
 embedded-hal-nb = "1.0"
 embedded-dma = "0.2.0"

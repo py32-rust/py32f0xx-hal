@@ -2,7 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
-## v0.2.0
+## v0.2.1 - 2025-02-04
+
+### Fixed
+
+- Fixed bug with gpio mode setting for output push pull vs open drain, causing hardware resets.
+
+## v0.2.0 - 2025-01-21
 
 This version depends on py32-rs v0.2.0 or later
 
@@ -80,11 +86,11 @@ This version depends on py32-rs v0.2.0 or later
 - Fixed github action `ci.yml`
 - Fixed `tool/check.py`
 
-## v0.1.1 - 2024-10-10
+## v0.1.1 - 2024-10-10 - 2024-10-10
 
-## V0.1.0 - 2024-09-07
+## V0.1.0 - 2024-09-07 - 2024-09-07
 
-## v0.0.1 - 2023-06-10
+## v0.0.1 - 2023-06-10 - 2023-06-10
 
  - Original Release
 

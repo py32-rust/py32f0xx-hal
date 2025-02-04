@@ -1073,12 +1073,12 @@ impl<const P: char, const N: u8, M> Pin<P, N, M> {
         };
         // if an output, set output type
         if MODE::MODE == Mode::Output {
-            let otyperv = if MODE::CNF == Cnf::OpenDrain {
-                0b1 << N
-            } else {
-                !(0b1 << N)
+            let otv = match MODE::CNF {
+                Cnf::OpenDrain => 0b1,
+                Cnf::PushPull => 0b0,
             };
-            unsafe { gpio.otyper.modify(|r, w| w.bits(r.bits() | otyperv)) };
+            gpio.otyper
+                .modify(|r, w| unsafe { w.bits((r.bits() & !(0b1 << N)) | (otv << N)) });
         }
         // if an alternate function pin, set that
         if let Some(af) = MODE::AF {
