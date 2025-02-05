@@ -300,15 +300,11 @@ impl<CS> Rtc<CS> {
         // See section 18.3.5 for explanation
         let alarm_value = counter_value - 1;
 
-        // TODO: Remove this `allow` once these fields are made safe for stm32f100
-        #[allow(unused_unsafe)]
         self.perform_write(|s| {
             s.regs
                 .alrh
-                .write(|w| unsafe { w.alrh().bits((alarm_value >> 16) as u16) });
-            s.regs
-                .alrl
-                .write(|w| unsafe { w.alrl().bits(alarm_value as u16) });
+                .write(|w| w.alrh().bits((alarm_value >> 16) as u16));
+            s.regs.alrl.write(|w| w.alrl().bits(alarm_value as u16));
         });
 
         self.clear_alarm_flag();

@@ -289,6 +289,8 @@ mod inner {
     pub(super) fn enable_clock(rcc: &mut RCC, c_src: &SysClkSource) {
         // Enable the requested clock
         match c_src {
+            // HSE is not used on some families
+            #[allow(unused_variables)]
             SysClkSource::HSE(freq, bypassed) => {
                 #[cfg(any(feature = "py32f030", feature = "py32f003", feature = "py32f002a"))]
                 hse_enable(rcc, *freq, bypassed);

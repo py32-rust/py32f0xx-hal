@@ -34,8 +34,7 @@ macro_rules! i2c_pins {
     }
 }
 
-// TODO: Double check if all parts aexcept f002b support these
-#[cfg(any(feature = "py32f030", feature = "py32f003", feature = "py32f002a"))]
+#[cfg(feature = "py32f030")]
 i2c_pins! {
     I2C => {
         scl => [
@@ -55,7 +54,48 @@ i2c_pins! {
             gpioa::PA10<Alternate<AF6>>,
             gpioa::PA12<Alternate<AF6>>,
             gpiob::PB7<Alternate<AF6>>,
-            gpiob::PB8<Alternate<AF12>>,
+            gpiof::PF0<Alternate<AF12>>
+        ],
+    }
+}
+
+#[cfg(feature = "py32f002a")]
+i2c_pins! {
+    I2C => {
+        scl => [
+            gpioa::PA3<Alternate<AF12>>,
+            gpioa::PA8<Alternate<AF12>>,
+            gpioa::PA9<Alternate<AF6>>,
+            gpioa::PA10<Alternate<AF12>>,
+            gpiob::PB6<Alternate<AF6>>,
+            gpiob::PB8<Alternate<AF6>>,
+            gpiof::PF1<Alternate<AF12>>
+        ],
+        sda => [
+            gpioa::PA2<Alternate<AF12>>,
+            gpioa::PA7<Alternate<AF12>>,
+            gpioa::PA9<Alternate<AF12>>,
+            gpioa::PA10<Alternate<AF6>>,
+            gpioa::PA12<Alternate<AF6>>,
+            gpiob::PB7<Alternate<AF6>>,
+            gpiof::PF0<Alternate<AF12>>
+        ],
+    }
+}
+
+#[cfg(feature = "py32f003")]
+i2c_pins! {
+    I2C => {
+        scl => [
+            gpioa::PA3<Alternate<AF12>>,
+            gpiob::PB6<Alternate<AF6>>,
+            gpiof::PF1<Alternate<AF12>>
+        ],
+        sda => [
+            gpioa::PA2<Alternate<AF12>>,
+            gpioa::PA7<Alternate<AF12>>,
+            gpioa::PA12<Alternate<AF6>>,
+            gpiob::PB7<Alternate<AF6>>,
             gpiof::PF0<Alternate<AF12>>
         ],
     }

@@ -104,7 +104,6 @@ mod io {
     use embedded_io::Write;
 
     impl embedded_io::Error for Error {
-        // TODO: fix error conversion
         fn kind(&self) -> embedded_io::ErrorKind {
             embedded_io::ErrorKind::Other
         }

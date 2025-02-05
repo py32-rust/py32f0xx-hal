@@ -16,14 +16,14 @@ description = "Peripheral access API for py32F0 series microcontrollers"
 documentation = "https://docs.rs/crate/py32f0xx-hal"
 
 [package.metadata.docs.rs]
-features = ["py32f030", "rt"]
+features = ["py32f030", "rt", "rtic"]
 targets = ["thumbv6m-none-eabi"]
 
 [dependencies]
 bare-metal = { version = "1.0.0" }
 cast = "0.3.0"
 cortex-m = { version = "0.7.7", features = ["critical-section-single-core"] }
-py32f0 = "0.2.0"
+py32f0 = "0.2.1"
 embedded-hal = "1.0"
 embedded-hal-nb = "1.0"
 embedded-dma = "0.2.0"

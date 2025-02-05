@@ -1,7 +1,5 @@
 //! API for the integrated USART ports
 //!
-//! This only implements the usual asynchronous bidirectional 8-bit transfers.
-//!
 //! It's possible to use a read-only/write-only serial implementation with
 //! `rx`/`tx`.
 //!

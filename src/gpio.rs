@@ -283,13 +283,13 @@ where
                 exti.exticr2
                     .modify(|r, w| unsafe { w.bits(r.bits() | (port << offset)) });
             }
-            // BUGBUG: py32f002a only has 15 port A pins? pin 8, mux selects ports a=0, b=1
+            // pin 8, mux selects ports a=0, b=1
             #[cfg(any(feature = "py32f030", feature = "py32f003", feature = "py32f002a"))]
             8 => {
                 exti.exticr3
                     .modify(|r, w| unsafe { w.bits(r.bits() | (port << offset)) });
             }
-            // BUGBUG: py32f002a only has 15 port A pins? pin 9-15, no mux
+            // pin 9-15, no mux
             #[cfg(any(feature = "py32f030", feature = "py32f003", feature = "py32f002a"))]
             9..=15 => {}
             _ => unreachable!(),
@@ -1073,12 +1073,12 @@ impl<const P: char, const N: u8, M> Pin<P, N, M> {
         };
         // if an output, set output type
         if MODE::MODE == Mode::Output {
-            let otyperv = if MODE::CNF == Cnf::OpenDrain {
-                0b1 << N
-            } else {
-                !(0b1 << N)
+            let otv = match MODE::CNF {
+                Cnf::OpenDrain => 0b1,
+                Cnf::PushPull => 0b0,
             };
-            unsafe { gpio.otyper.modify(|r, w| w.bits(r.bits() | otyperv)) };
+            gpio.otyper
+                .modify(|r, w| unsafe { w.bits((r.bits() & !(0b1 << N)) | (otv << N)) });
         }
         // if an alternate function pin, set that
         if let Some(af) = MODE::AF {

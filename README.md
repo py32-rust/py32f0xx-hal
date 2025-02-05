@@ -1,13 +1,7 @@
 py32f0xx-hal
-=============
+================
 
 > [HAL] for the py32f0xx family of microcontrollers
-
-> **NOTE: The function's are not fully tested, and you are responsible for any problems with the use of this repository.**
-
-Known issues:
-    - I2C master/slave not tested
-    - rtc not tested
 
 [![Crates.io](https://img.shields.io/crates/d/py32f0xx-hal.svg)](https://crates.io/crates/py32f0xx-hal)
 [![Crates.io](https://img.shields.io/crates/v/py32f0xx-hal.svg)](https://crates.io/crates/py32f0xx-hal)
@@ -27,6 +21,36 @@ Supported
 * __py32f002a__ (py32f002ax5)
 * __py32f002b__ (py32f002bx5)
 
+| Family     |    F002A   |   F002A         | F030/F003      |
+| ---------- | ---------- | --------------- |--------------- |
+| RCC        | ✅         | ✅              | ✅              |
+| GPIO       | ✅         | ✅              | ✅              |
+| INTERRUPT  | ✅         | ✅              | ✅              |
+| DMA        | N/A        | N/A             | ✅             |
+| EXTI       | ✅         | ✅             | ✅             |
+| USART      | ✅         | ✅             | ✅             |
+| I2C        | ❓         | ❓             | ❓             |
+| SPI        | ✅         | ✅             | ✅               |
+| ADC        | ✅         | ✅             | ✅             |
+| RTC        | ✅         | ✅             | ✅               |
+| FLASH      |            |                |                |
+| Timer(PWM) | ✅        | ✅              | ✅              |
+| Watchdog   | ✅        | ✅              | ✅             |
+| LED        | N/A        | N/A             |               |
+
+
+- ✅ : Implemented
+- Blank : Not implemented
+- ❓ : Requires demo verification
+- `+` : Async support
+- N/A : Not available
+
+## TODOs
+
+- LSE/LSI test and examples
+
+- Other chips
+
 Getting Started
 ---------------
 The `examples` folder contains several example programs. To compile them, one must specify the target device as cargo feature:
@@ -43,7 +67,7 @@ cortex-m = "0.7.7"
 cortex-m-rt = "0.7.3"
 # Panic behaviour, see https://crates.io/keywords/panic-impl for alternatives
 panic-halt = "0.2.0"
-py32f0xx-hal = { version = "0.2.0", features = ["py32f002ax5"]}
+py32f0xx-hal = { version = "0.2.1", features = ["py32f002ax5"]}
 ```
 
 If you are unfamiliar with embedded development using Rust, there are a number of fantastic resources available to help.
@@ -73,4 +97,4 @@ Credits
 License
 -------
 
-0-Clause BSD License, see [LICENSE-0BSD.txt](LICENSE-0BSD.txt) for more details.
+-0-Clause BSD License, see [LICENSE-0BSD.txt](LICENSE-0BSD.txt) for more details.

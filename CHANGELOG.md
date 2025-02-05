@@ -2,7 +2,33 @@
 
 All notable changes to this project will be documented in this file.
 
-## v0.2.0
+## Unreleased
+
+### Added
+
+- `timer` module trait:`WithPwm` and enum:`Channel`
+- implemented `WithPwm` trait on hardware timers
+- timer module `pwm` that implements pwm using new code
+- added embedded-hal traits to hal modules in timer
+- added `crate::timer::pwm::PwmExt` trait to prelude
+
+### Changed
+
+- This version requires v0.2.1 of the [py32-rs](https://github.com/py32-rs/py32-rs.git) crate.
+- Updated pwm examples to use new pwm code
+
+### Removed
+
+- Removed BUGBUG comment in gpio.rs
+- Removed allow unsafe directive in rtc.rs
+- Removed `pwm` separate module, reimplemented in `timer`
+
+### Fixed
+
+- Checked against datasheets and corrected I2C pins in `i2c_pins` macro
+- Fixed warning in rcc.rs
+
+## v0.2.0 - 2025-01-21
 
 This version depends on py32-rs v0.2.0 or later
 

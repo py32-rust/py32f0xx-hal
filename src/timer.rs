@@ -1,7 +1,5 @@
 //! API for the integrated timers
 //!
-//! This only implements basic functions, a lot of things are missing
-//!
 //! # Example
 //! Blink the led with 1Hz
 //! ``` no_run
@@ -41,11 +39,14 @@ pub mod monotonic;
 #[cfg(feature = "rtic")]
 pub use monotonic::*;
 pub(crate) mod pins;
+//pub mod pwm_input;
 pub use pins::*;
 pub mod delay;
 pub use delay::*;
 pub mod counter;
 pub use counter::*;
+pub mod pwm;
+pub use pwm::*;
 
 mod hal_02;
 mod hal_1;
@@ -54,6 +55,15 @@ mod hal_1;
 pub struct Timer<TIM> {
     clk: Hertz,
     tim: TIM,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+pub enum Channel {
+    C1 = 0,
+    C2 = 1,
+    C3 = 2,
+    C4 = 3,
 }
 
 /// Interrupt events
@@ -211,8 +221,21 @@ impl Timer<SYST> {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(u8)]
+pub enum Ocm {
+    Frozen = 0,
+    ActiveOnMatch = 1,
+    InactiveOnMatch = 2,
+    Toggle = 3,
+    ForceInactive = 4,
+    ForceActive = 5,
+    PwmMode1 = 6,
+    PwmMode2 = 7,
+}
+
 mod sealed {
-    use super::{Event, DBG};
+    use super::{Channel, Event, Ocm, DBG};
     pub trait General {
         type Width: Into<u32> + From<u16>;
         fn max_auto_reload() -> u32;
@@ -235,6 +258,18 @@ mod sealed {
         fn stop_in_debug(&mut self, dbg: &mut DBG, state: bool);
     }
 
+    pub trait WithPwm: General {
+        const CH_NUM: u8;
+        const CHN_NUM: u8;
+        fn read_cc_value(channel: u8) -> u32;
+        fn set_cc_value(channel: u8, value: u32);
+        fn set_comp_off_state_run_mode(&mut self, state: bool);
+        fn preload_output_channel_in_mode(&mut self, channel: Channel, mode: Ocm);
+        fn start_pwm(&mut self);
+        fn enable_channel(channel: u8, b: bool);
+        fn enable_comp(channel: u8, b: bool);
+    }
+
     pub trait MasterTimer: General {
         type Mms;
         fn master_mode(&mut self, mode: Self::Mms);
@@ -245,7 +280,7 @@ mod sealed {
     }
 }
 
-pub(crate) use sealed::{General, MasterTimer, OnePulseMode};
+pub(crate) use sealed::{General, MasterTimer, OnePulseMode, WithPwm};
 
 pub trait Instance: crate::Sealed + Enable + Reset + BusTimerClock + General {}
 
@@ -255,6 +290,7 @@ macro_rules! hal {
         $bits:ty,
         $dbg_timX_reg:ident,
         $dbg_timX_stop:ident,
+        $(c: ($cnum:ident, $chnum:literal $(, $aoe:ident)?),)?
         $(m: $timbase:ident,)?
         $(opm: $opm:ident,)?
     ],)+) => {
@@ -355,6 +391,7 @@ macro_rules! hal {
                     dbg.$dbg_timX_reg.modify(|_, w| w.$dbg_timX_stop().bit(state));
                 }
             }
+            $(with_pwm!($TIM: $cnum, $chnum $(, $aoe)?);)?
 
             $(impl MasterTimer for $TIM {
                 type Mms = pac::$timbase::cr2::MMS_A;
@@ -369,6 +406,153 @@ macro_rules! hal {
                 }
             })?
         )+
+    }
+}
+
+macro_rules! with_pwm {
+    // General purpose timer with one output channel (TIM16/17), maximum of 1 complementary output
+    ($TIM:ty: CH1, $chnum:literal $(, $aoe:ident)?) => {
+        impl WithPwm for $TIM {
+            const CH_NUM: u8 = 1;
+            const CHN_NUM: u8 = $chnum;
+
+            #[inline(always)]
+            fn read_cc_value(channel: u8) -> u32 {
+                let tim = unsafe { &*<$TIM>::ptr() };
+                if channel < Self::CH_NUM {
+                    tim.ccr[channel as usize].read().bits()
+                } else {
+                    0
+                }
+            }
+
+            #[inline(always)]
+            fn set_cc_value(channel: u8, value: u32) {
+                let tim = unsafe { &*<$TIM>::ptr() };
+                #[allow(unused_unsafe)]
+                if channel < Self::CH_NUM {
+                    tim.ccr[channel as usize].write(|w| unsafe { w.bits(value) });
+                }
+            }
+
+            #[inline(always)]
+            #[allow(unused_variables)]
+            fn set_comp_off_state_run_mode(&mut self, state: bool) {
+                $(let $aoe = self.bdtr.modify(|_, w| w.ossr().bit(state));)?
+            }
+
+            #[inline(always)]
+            fn preload_output_channel_in_mode(&mut self, channel: Channel, mode: Ocm) {
+                match channel {
+                    Channel::C1 => {
+                        #[allow(unused_unsafe)]
+                        self.ccmr1_output()
+                            .modify(|_, w| unsafe { w.oc1pe().set_bit().oc1m().bits(mode as _) });
+                    }
+                    _ => {},
+                }
+            }
+
+            #[inline(always)]
+            fn start_pwm(&mut self) {
+                $(let $aoe = self.bdtr.modify(|_, w| w.aoe().set_bit());)?
+                self.cr1.modify(|_, w| w.cen().set_bit());
+            }
+
+            #[inline(always)]
+            fn enable_channel(c: u8, b: bool) {
+                let tim = unsafe { &*<$TIM>::ptr() };
+                match c {
+                    0 => tim.ccer.modify(|_,w| w.cc1e().bit(b)),
+                    _ => {},
+                }
+            }
+
+            #[inline(always)]
+            fn enable_comp(c: u8, b: bool) {
+                let tim = unsafe { &*<$TIM>::ptr() };
+                if c >= Self::CHN_NUM {
+                    panic!("Complementary channel not available");
+                }
+                let val = if b { 1 << ((c * 4) + 2) } else { 0 };
+                tim.ccer.modify(|r,w| unsafe { w.bits((r.bits() & !(0xb << (c * 4))) | val) });
+            }
+        }
+    };
+    // General purpose timer with 4 output channels (TIM1, TIM3), maximum of 3 complementary output
+    ($TIM:ty: CH4, $chnum:literal $(, $aoe:ident)?) => {
+        impl WithPwm for $TIM {
+            const CH_NUM: u8 = 4;
+            const CHN_NUM: u8 =  $chnum;
+
+            #[inline(always)]
+            fn read_cc_value(channel: u8) -> u32 {
+                let tim = unsafe { &*<$TIM>::ptr() };
+                tim.ccr[channel as usize].read().bits()
+            }
+
+            #[inline(always)]
+            fn set_cc_value(channel: u8, value: u32) {
+                let tim = unsafe { &*<$TIM>::ptr() };
+                tim.ccr[channel as usize].write(|w| unsafe { w.bits(value) });
+            }
+
+            #[inline(always)]
+            #[allow(unused_variables)]
+            fn set_comp_off_state_run_mode(&mut self, state: bool) {
+                $(let $aoe = self.bdtr.modify(|_, w| w.ossr().bit(state));)?
+            }
+
+            #[inline(always)]
+            fn preload_output_channel_in_mode(&mut self, channel: Channel, mode: Ocm) {
+                match channel {
+                    Channel::C1 => {
+                        self.ccmr1_output()
+                        .modify(|_, w| w.oc1pe().set_bit().oc1m().bits(mode as _) );
+                    }
+                    Channel::C2 => {
+                        self.ccmr1_output()
+                        .modify(|_, w| w.oc2pe().set_bit().oc2m().bits(mode as _) );
+                    }
+                    Channel::C3 => {
+                        self.ccmr2_output()
+                        .modify(|_, w| w.oc3pe().set_bit().oc3m().bits(mode as _) );
+                    }
+                    Channel::C4 => {
+                        self.ccmr2_output()
+                        .modify(|_, w| w.oc4pe().set_bit().oc4m().bits(mode as _) );
+                    }
+                }
+            }
+
+            #[inline(always)]
+            fn start_pwm(&mut self) {
+                $(let $aoe = self.bdtr.modify(|_, w| w.aoe().set_bit());)?
+                self.cr1.modify(|_, w| w.cen().set_bit());
+            }
+
+            #[inline(always)]
+            fn enable_channel(c: u8, b: bool) {
+                let tim = unsafe { &*<$TIM>::ptr() };
+                match c {
+                    0 => tim.ccer.modify(|_,w| w.cc1e().bit(b)),
+                    1 => tim.ccer.modify(|_,w| w.cc2e().bit(b)),
+                    2 => tim.ccer.modify(|_,w| w.cc3e().bit(b)),
+                    3 => tim.ccer.modify(|_,w| w.cc4e().bit(b)),
+                    _ => {},
+                }
+            }
+
+            #[inline(always)]
+            fn enable_comp(c: u8, b: bool) {
+                let tim = unsafe { &*<$TIM>::ptr() };
+                if c >= Self::CHN_NUM {
+                    panic!("Complementary channel not available");
+                }
+                let val = if b { 1 << ((c * 4) + 2) } else { 0 };
+                tim.ccer.modify(|r,w| unsafe { w.bits((r.bits() & !(0xb << (c * 4))) | val) });
+            }
+        }
     }
 }
 
@@ -545,26 +729,26 @@ const fn compute_arr_presc(freq: u32, clock: u32) -> (u16, u32) {
 }
 
 hal!(
-    pac::TIM1: [Timer1, u16, apb_fz2, dbg_timer1_stop, m: tim1, opm: opm,],
+    pac::TIM1: [Timer1, u16, apb_fz2, dbg_timer1_stop, c: (CH4, 3, _aoe), m: tim1, opm: opm,],
 );
 
 #[cfg(any(feature = "py32f030", feature = "py32f003"))]
 hal!(
-    pac::TIM3: [Timer3, u16, apb_fz1, dbg_timer3_stop, m: tim3, opm: opm,],
-    pac::TIM17: [Timer17, u16, apb_fz2, dbg_timer17_stop, opm: opm,],
+    pac::TIM3: [Timer3, u16, apb_fz1, dbg_timer3_stop, c: (CH4, 0), m: tim3, opm: opm,],
+    pac::TIM17: [Timer17, u16, apb_fz2, dbg_timer17_stop, c: (CH1, 1, _aoe), opm: opm,],
 );
 
-#[cfg(any(feature = "py32f030", feature = "py32f003", feature = "py32f002a"))]
+#[cfg(any(feature = "py32f030", feature = "py32f003"))]
+hal!(
+    pac::TIM16: [Timer16, u16, apb_fz2, dbg_timer16_stop, c: (CH1, 1, _aoe), opm: opm,],
+);
+
+#[cfg(any(feature = "py32f002a"))]
 hal!(
     pac::TIM16: [Timer16, u16, apb_fz2, dbg_timer16_stop, opm: opm,],
 );
 
-#[cfg(any(feature = "py32f030", feature = "py32f003"))]
+#[cfg(any(feature = "py32f030", feature = "py32f003", feature = "py32f002b"))]
 hal!(
-    pac::TIM14: [Timer14, u16, apb_fz2, dbg_timer14_stop,],
-);
-
-#[cfg(feature = "py32f002b")]
-hal!(
-    pac::TIM14: [Timer14, u16, apb_fz2, dbg_tim14_stop,],
+    pac::TIM14: [Timer14, u16, apb_fz2, dbg_timer14_stop, c: (CH1, 0),],
 );

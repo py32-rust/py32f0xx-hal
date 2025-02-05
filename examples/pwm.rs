@@ -9,8 +9,7 @@ use cortex_m_rt::entry;
 
 use py32f0xx_hal as hal;
 
-use embedded_hal_02::PwmPin;
-use hal::{pac, prelude::*, pwm};
+use hal::{pac, prelude::*};
 
 #[entry]
 fn main() -> ! {
@@ -24,10 +23,10 @@ fn main() -> ! {
         gpioa.pa9.into_alternate_af2(), // on TIM1_CH2
     );
 
-    let pwm = pwm::tim1(dp.TIM1, channels, &rcc.clocks, 20.kHz());
-    let (mut ch1, mut ch2) = pwm;
+    let pwm = dp.TIM1.pwm_hz(channels, 20.kHz(), &rcc.clocks);
+    let (mut ch1, mut ch2) = pwm.split();
     let max_duty = ch1.get_max_duty();
-    ch1.set_duty(max_duty / 2);
+    ch1.set_duty(max_duty / 4);
     ch1.enable();
     ch2.set_duty(max_duty * 9 / 10);
     ch2.enable();
