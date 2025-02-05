@@ -28,6 +28,12 @@ All notable changes to this project will be documented in this file.
 - Checked against datasheets and corrected I2C pins in `i2c_pins` macro
 - Fixed warning in rcc.rs
 
+## v0.2.1 - 2025-02-04
+
+### Fixed
+
+- Fixed bug with gpio mode setting for output push pull vs open drain, causing hardware resets.
+
 ## v0.2.0 - 2025-01-21
 
 This version depends on py32-rs v0.2.0 or later
