@@ -28,6 +28,13 @@ All notable changes to this project will be documented in this file.
 - Checked against datasheets and corrected I2C pins in `i2c_pins` macro
 - Fixed warning in rcc.rs
 
+## v0.2.2 - 2025-02-07
+
+### Changed
+
+- Modified license from BSD to dual MIT/Apache
+- Added peripheral coverage in README.md
+
 ## v0.2.1 - 2025-02-04
 
 ### Fixed

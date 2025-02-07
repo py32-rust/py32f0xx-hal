@@ -1,6 +1,6 @@
 [package]
 name = "py32f0xx-hal"
-version = "0.2.1"
+version = "0.2.2"
 authors = [
     "creatoy@yeah.net",
     "Greg Green <ggreen@bit-builder.com>",
@@ -8,7 +8,7 @@ authors = [
 edition = "2021"
 
 keywords = ["arm", "cortex-m", "py32f0xx", "hal"]
-license = "0BSD"
+license = "MIT OR Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/py32-rust/py32f0xx-hal"
 categories = ["embedded", "hardware-support", "no-std"]
