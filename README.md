@@ -27,6 +27,37 @@ Supported
 * __py32f002a__ (py32f002ax5)
 * __py32f002b__ (py32f002bx5)
 
+| Device     |    F002A   |   F002A         | F030/F003      |
+| ---------- | ---------- | --------------- |--------------- |
+| RCC        | ✅         | ✅              | ✅              |
+| GPIO       | ✅         | ✅              | ✅              |
+| INTERRUPT  | ✅         | ✅              | ✅              |
+| DMA        | N/A        | N/A             | ✅             |
+| EXTI       | ✅         | ✅             | ✅             |
+| USART      | ✅         | ✅             | ✅             |
+| I2C        | ❓         | ❓             | ❓             |
+| SPI        | ✅         | ✅             | ✅               |
+| ADC        | ✅         | ✅             | ✅             |
+| RTC        | ✅         | ✅             | ✅               |
+| FLASH      |            |                |                |
+| COMP       |            |                |                |
+| Timer(PWM) | ✅        | ✅              | ✅              |
+| Watchdog   | ✅        | ✅              | ✅             |
+| LED        | N/A        | N/A             |               |
+
+
+- ✅ : Implemented
+- Blank : Not implemented
+- ❓ : Requires demo verification
+- `+` : Async support
+- N/A : Not available
+
+## TODOs
+
+- LSE/LSI test and examples
+
+- Other chips
+
 Getting Started
 ---------------
 The `examples` folder contains several example programs. To compile them, one must specify the target device as cargo feature:
@@ -43,7 +74,7 @@ cortex-m = "0.7.7"
 cortex-m-rt = "0.7.3"
 # Panic behaviour, see https://crates.io/keywords/panic-impl for alternatives
 panic-halt = "0.2.0"
-py32f0xx-hal = { version = "0.2.1", features = ["py32f002ax5"]}
+py32f0xx-hal = { version = "0.2.2", features = ["py32f002ax5"]}
 ```
 
 If you are unfamiliar with embedded development using Rust, there are a number of fantastic resources available to help.
@@ -73,4 +104,17 @@ Credits
 License
 -------
 
-0-Clause BSD License, see [LICENSE-0BSD.txt](LICENSE-0BSD.txt) for more details.
+Licensed under either of
+
+ * Apache License, Version 2.0
+   ([LICENSE-APACHE](LICENSE-APACHE) or http://www.apache.org/licenses/LICENSE-2.0)
+ * MIT license
+   ([LICENSE-MIT](LICENSE-MIT) or http://opensource.org/licenses/MIT)
+
+at your option.
+
+## Contribution
+
+Unless you explicitly state otherwise, any contribution intentionally submitted
+for inclusion in the work by you, as defined in the Apache-2.0 license, shall be
+dual licensed as above, without any additional terms or conditions.

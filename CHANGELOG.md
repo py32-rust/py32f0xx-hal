@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.2.2 - 2025-02-07
+
+### Changed
+
+- Modified license from BSD to dual MIT/Apache
+- Added peripheral coverage in README.md
+
 ## v0.2.1 - 2025-02-04
 
 ### Fixed
