@@ -1,3 +1,4 @@
+//! API for the integrated I2C peripheral
 use core::ops::Deref;
 
 use embedded_hal_02::blocking::i2c::{Read, Write, WriteRead};
@@ -15,7 +16,9 @@ pub struct I2c<I2C: Instance, SCLPIN, SDAPIN> {
     pins: (SCLPIN, SDAPIN),
 }
 
+/// Trait for identifying SCL pins
 pub trait SclPin<I2C> {}
+/// Trait for identifying SDA pins
 pub trait SdaPin<I2C> {}
 
 macro_rules! i2c_pins {
@@ -34,8 +37,7 @@ macro_rules! i2c_pins {
     }
 }
 
-// TODO: Double check if all parts aexcept f002b support these
-#[cfg(any(feature = "py32f030", feature = "py32f003", feature = "py32f002a"))]
+#[cfg(feature = "py32f030")]
 i2c_pins! {
     I2C => {
         scl => [
@@ -55,7 +57,48 @@ i2c_pins! {
             gpioa::PA10<Alternate<AF6>>,
             gpioa::PA12<Alternate<AF6>>,
             gpiob::PB7<Alternate<AF6>>,
-            gpiob::PB8<Alternate<AF12>>,
+            gpiof::PF0<Alternate<AF12>>
+        ],
+    }
+}
+
+#[cfg(feature = "py32f002a")]
+i2c_pins! {
+    I2C => {
+        scl => [
+            gpioa::PA3<Alternate<AF12>>,
+            gpioa::PA8<Alternate<AF12>>,
+            gpioa::PA9<Alternate<AF6>>,
+            gpioa::PA10<Alternate<AF12>>,
+            gpiob::PB6<Alternate<AF6>>,
+            gpiob::PB8<Alternate<AF6>>,
+            gpiof::PF1<Alternate<AF12>>
+        ],
+        sda => [
+            gpioa::PA2<Alternate<AF12>>,
+            gpioa::PA7<Alternate<AF12>>,
+            gpioa::PA9<Alternate<AF12>>,
+            gpioa::PA10<Alternate<AF6>>,
+            gpioa::PA12<Alternate<AF6>>,
+            gpiob::PB7<Alternate<AF6>>,
+            gpiof::PF0<Alternate<AF12>>
+        ],
+    }
+}
+
+#[cfg(feature = "py32f003")]
+i2c_pins! {
+    I2C => {
+        scl => [
+            gpioa::PA3<Alternate<AF12>>,
+            gpiob::PB6<Alternate<AF6>>,
+            gpiof::PF1<Alternate<AF12>>
+        ],
+        sda => [
+            gpioa::PA2<Alternate<AF12>>,
+            gpioa::PA7<Alternate<AF12>>,
+            gpioa::PA12<Alternate<AF6>>,
+            gpiob::PB7<Alternate<AF6>>,
             gpiof::PF0<Alternate<AF12>>
         ],
     }
@@ -75,12 +118,19 @@ i2c_pins! {
     }
 }
 
+/// Error enum for I2C peripheral
 #[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum Error {
+    /// data has been overwritten before being read
     OVERRUN,
+    /// An acknowledge error occurs when the interface detects a no acknowledge bit
     NACK,
+    /// A bus error is generated when the I2C interface detects an
+    /// external stop or start condition during an address or data
+    /// byte transfer
     BUS,
+    /// Packet error check error
     PEC,
 }
 
@@ -88,6 +138,7 @@ pub enum Error {
 #[allow(dead_code)]
 type I2cRegisterBlock = crate::pac::i2c::RegisterBlock;
 
+/// trait for I2C peripheral instance
 pub trait Instance: Deref<Target = I2cRegisterBlock> + crate::Sealed + Enable + Reset {
     #[doc(hidden)]
     fn ptr() -> *const I2cRegisterBlock;
@@ -104,6 +155,7 @@ macro_rules! i2c {
             }
 
             impl<SCLPIN, SDAPIN> I2c<$I2C, SCLPIN, SDAPIN> {
+                /// Create an instance of I2C peripheral
                 pub fn $i2c(i2c: $I2C, pins: (SCLPIN, SDAPIN), speed: KiloHertz, clocks: &Clocks) -> Self
                 where
                     SCLPIN: SclPin<$I2C>,
@@ -165,6 +217,7 @@ where
         self
     }
 
+    /// Release the I2C instance
     pub fn release(self) -> (I2C, (SCLPIN, SDAPIN)) {
         (self.i2c, self.pins)
     }

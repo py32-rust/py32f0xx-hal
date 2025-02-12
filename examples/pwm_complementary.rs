@@ -11,8 +11,7 @@ use cortex_m_rt::entry;
 use py32f0xx_hal as hal;
 
 use embedded_hal_02::blocking::delay::DelayMs;
-use embedded_hal_02::PwmPin;
-use hal::{pac, prelude::*, pwm};
+use hal::{pac, prelude::*};
 
 #[entry]
 fn main() -> ! {
@@ -27,8 +26,8 @@ fn main() -> ! {
         gpioa.pa7.into_alternate_af2(), // on TIM1_CH1N
     );
 
-    let pwm = pwm::tim1(dp.TIM1, channels, &rcc.clocks, 20.kHz());
-    let (mut ch1, mut ch1n) = pwm;
+    let pwm = dp.TIM1.pwm_hz(channels, 20.kHz(), &rcc.clocks);
+    let (mut ch1, mut ch1n) = pwm.split();
     let max_duty = ch1.get_max_duty();
     ch1.set_duty(max_duty / 2);
     ch1.enable();

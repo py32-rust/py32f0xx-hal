@@ -1,4 +1,4 @@
-//! # Direct Memory Access
+//! # API for the Direct Memory Access peripheral
 #![allow(dead_code)]
 
 use crate::pac;
@@ -10,30 +10,43 @@ use core::{
 };
 use embedded_dma::{ReadBuffer, WriteBuffer};
 
+/// Error type for DMA peripheral
 #[derive(Debug)]
 #[non_exhaustive]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum Error {
+    /// The event was not handled before succeeding event happened
     Overrun,
 }
 
+/// Event types for DMA peripheral
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Event {
+    /// Half of the transfer has been completed
     HalfTransfer,
+    /// Transfer is completed
     TransferComplete,
 }
 
+/// Identifies Half of a circular buffer
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Half {
+    /// First half of circular buffer
     First,
+    /// Second half of circular buffer
     Second,
 }
 
+/// Priority of a DMA channel
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Priority {
+    /// Low priority
     Low,
+    /// Medium priority
     Medium,
+    /// High priority
     High,
+    /// Highest priority
     VeryHigh,
 }
 
@@ -48,9 +61,12 @@ impl core::convert::From<Priority> for u8 {
     }
 }
 
+/// Transfer direction for a DMA channel
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TransferDir {
+    /// Transfer is from memory
     FromMemory,
+    /// Transfer is from a peripheral
     FromPeripheral,
 }
 
@@ -63,10 +79,14 @@ impl core::convert::From<TransferDir> for bool {
     }
 }
 
+/// Data size for DMA transfers
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum DataSize {
+    /// 8-bit data size transfers
     Bits8,
+    /// 16-bit data size transfers
     Bits16,
+    /// 32-bit data size transfers
     Bits32,
 }
 
@@ -80,34 +100,62 @@ impl core::convert::From<DataSize> for u8 {
     }
 }
 
+/// Start/End point for DMA transfers
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PeriphMap {
+    /// ADC peripheral
     Adc,
+    /// SPI1 Transmit
     Spi1Tx,
+    /// SPI1 Receive
     Spi1Rx,
+    /// SPI2 Transmit
     Spi2Tx,
+    /// SPI2 Receive
     Spi2Rx,
+    /// USART1 Transmit
     Usart1Tx,
+    /// USART1 Receive
     Usart1Rx,
+    /// USART2 Transmit
     Usart2Tx,
+    /// USART2 Receive
     Usart2Rx,
+    /// I2C Transmit
     I2cTx,
+    /// I2C Receive
     I2cRx,
+    /// Timer1 Channel 1
     Tim1Ch1,
+    /// Timer1 Channel 2
     Tim1Ch2,
+    /// Timer1 Channel 3
     Tim1Ch3,
+    /// Timer1 Channel 4
     Tim1Ch4,
+    /// Timer1 Common
     Tim1Com,
+    /// Timer1 Up
     Tim1Up,
+    /// Timer1 Trigger
     Tim1Trig,
+    /// Timer3 Channel 1
     Tim3Ch1,
+    /// Timer3 Channel 3
     Tim3Ch3,
+    /// Timer3 Channel 4
     Tim3Ch4,
+    /// Timer3 Trigger
     Tim3Trig,
+    /// Timer3 Up
     Tim3Up,
+    /// Timer16 Channel 1
     Tim16Ch1,
+    /// Timer16 Up
     Tim16Up,
+    /// Timer17 Channel 1
     Tim17Ch1,
+    /// Timer17 Up
     Tim17Up,
 }
 
@@ -145,6 +193,7 @@ impl core::convert::From<PeriphMap> for u32 {
     }
 }
 
+/// Circular Buffer for DMA Transfers
 pub struct CircBuffer<BUFFER, PAYLOAD>
 where
     BUFFER: 'static,
@@ -168,19 +217,27 @@ where
     }
 }
 
+/// Extension trait for DMA peripherals
 pub trait DmaExt {
+    /// type containing list of channels
     type Channels;
 
+    /// Split the DMA channels from the peripheral
     fn split(self) -> Self::Channels;
 
+    #[doc(hidden)]
     fn ptr() -> *const pac::dma::RegisterBlock;
 }
 
+/// Trait for a Transfer
 pub trait TransferPayload {
+    /// start the transfer
     fn start(&mut self);
+    /// stop the transfer
     fn stop(&mut self);
 }
 
+/// DMA Transfer
 pub struct Transfer<MODE, BUFFER, PAYLOAD>
 where
     PAYLOAD: TransferPayload,
@@ -303,6 +360,7 @@ impl<DMA: DmaExt, const C: u8> Ch<DMA, C> {
         unsafe { self.isr().tcif(C).bit_is_clear() }
     }
 
+    /// Listen for [Event] for a channel
     pub fn listen(&mut self, event: Event) {
         match event {
             Event::HalfTransfer => self.ch().cr.modify(|_, w| w.htie().set_bit()),
@@ -310,6 +368,7 @@ impl<DMA: DmaExt, const C: u8> Ch<DMA, C> {
         }
     }
 
+    /// Stop listening for [Event] for a channel
     pub fn unlisten(&mut self, event: Event) {
         match event {
             Event::HalfTransfer => self.ch().cr.modify(|_, w| w.htie().clear_bit()),
@@ -317,20 +376,21 @@ impl<DMA: DmaExt, const C: u8> Ch<DMA, C> {
         }
     }
 
-    pub fn ch(&mut self) -> &pac::dma::CH {
+    /// Get the [RegisterBlock] for a DMA channel
+    pub(crate) fn ch(&mut self) -> &pac::dma::CH {
         unsafe { &(*DMA::ptr()).ch[C as usize - 1] }
     }
 
-    pub fn isr(&self) -> pac::dma::isr::R {
+    pub(crate) fn isr(&self) -> pac::dma::isr::R {
         // NOTE(unsafe) atomic read with no side effects
         unsafe { (*DMA::ptr()).isr.read() }
     }
 
-    pub fn ifcr(&self) -> &pac::dma::IFCR {
+    pub(crate) fn ifcr(&self) -> &pac::dma::IFCR {
         unsafe { &(*DMA::ptr()).ifcr }
     }
 
-    pub fn get_ndtr(&self) -> u32 {
+    pub(crate) fn get_ndtr(&self) -> u32 {
         // NOTE(unsafe) atomic read with no side effects
         unsafe { (*DMA::ptr()).ch[C as usize - 1].ndtr.read().bits() }
     }
@@ -583,6 +643,7 @@ impl<BUFFER, PAYLOAD, DMA: DmaExt, const C: u8> Transfer<W, BUFFER, RxDma<PAYLOA
 where
     RxDma<PAYLOAD, Ch<DMA, C>>: TransferPayload,
 {
+    /// Get a slice to the current transfer data
     pub fn peek<T>(&self) -> &[T]
     where
         BUFFER: AsRef<[T]>,
@@ -601,6 +662,7 @@ impl<RXBUFFER, TXBUFFER, PAYLOAD, DMA: DmaExt, const RXC: u8, const TXC: u8>
 where
     RxTxDma<PAYLOAD, Ch<DMA, RXC>, Ch<DMA, TXC>>: TransferPayload,
 {
+    /// Get a slice to the current transfer data
     pub fn peek<T>(&self) -> &[T]
     where
         RXBUFFER: AsRef<[T]>,
@@ -618,15 +680,18 @@ macro_rules! dma {
     ($DMAX:ident: ($dmaX:ident, {
         $($CX:ident: ($ch: literal),)+
     }),) => {
+        /// DMA peripheral
         pub mod $dmaX {
             use crate::dma::DmaExt;
             use crate::pac::{$DMAX, RCC};
 
+            /// List of DMA channels
             #[non_exhaustive]
             #[allow(clippy::manual_non_exhaustive)]
             pub struct Channels((), $(pub $CX),+);
 
             $(
+                /// Type alias for a DMA Channel
                 pub type $CX = super::Ch<$DMAX, $ch>;
             )+
 
@@ -666,29 +731,39 @@ dma! {
 /// DMA Receiver
 pub struct RxDma<PAYLOAD, RXCH> {
     pub(crate) payload: PAYLOAD,
+    /// DMA channel number [1-3]
     pub channel: RXCH,
 }
 
 /// DMA Transmitter
 pub struct TxDma<PAYLOAD, TXCH> {
     pub(crate) payload: PAYLOAD,
+    /// DMA channel number [1-3]
     pub channel: TXCH,
 }
 
 /// DMA Receiver/Transmitter
 pub struct RxTxDma<PAYLOAD, RXCH, TXCH> {
     pub(crate) payload: PAYLOAD,
+    /// DMA receiving channel number [1-3]
     pub rxchannel: RXCH,
+    /// DMA transmitting channel number [1-3]
     pub txchannel: TXCH,
 }
 
+/// Trait for a Receive DMA channel
 pub trait Receive {
+    /// The DMA receiving channel
     type RxChannel;
+    /// transmitted word type
     type TransmittedWord;
 }
 
+/// Trait for a Transmit DMA channel
 pub trait Transmit {
+    /// The DMA transmitting channel
     type TxChannel;
+    /// received word type
     type ReceivedWord;
 }
 
@@ -699,6 +774,7 @@ where
     B: 'static,
     Self: core::marker::Sized,
 {
+    /// Read the data into a [CircBuffer]
     fn circ_read(self, buffer: &'static mut [B; 2]) -> CircBuffer<B, Self>;
 }
 
@@ -708,6 +784,7 @@ where
     B: WriteBuffer<Word = RS>,
     Self: core::marker::Sized + TransferPayload,
 {
+    /// Read the data into a [Transfer] buffer
     fn read(self, buffer: B) -> Transfer<W, B, Self>;
 }
 
@@ -717,15 +794,19 @@ where
     B: ReadBuffer<Word = TS>,
     Self: core::marker::Sized + TransferPayload,
 {
+    /// Write the data into a [Transfer] buffer
     fn write(self, buffer: B) -> Transfer<R, B, Self>;
 }
 
-/// Trait for DMA simultaneously reading and writing within one synchronous operation. Panics if both buffers are not of equal length.
+/// Trait for DMA simultaneously reading and writing within one synchronous operation.
+///
+/// Panics if both buffers are not of equal length.
 pub trait ReadWriteDma<RXB, TXB, TS>: Transmit
 where
     RXB: WriteBuffer<Word = TS>,
     TXB: ReadBuffer<Word = TS>,
     Self: core::marker::Sized + TransferPayload,
 {
+    /// Read/Write data into buffers
     fn read_write(self, rx_buffer: RXB, tx_buffer: TXB) -> Transfer<W, (RXB, TXB), Self>;
 }

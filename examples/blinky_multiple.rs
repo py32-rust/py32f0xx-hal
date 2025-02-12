@@ -32,12 +32,7 @@ fn main() -> ! {
     let mut leds = [led1.erase(), led2.erase()];
     loop {
         for l in &mut leds {
-            l.set_high();
-        }
-        delay.delay_ms(1_000_u16);
-
-        for l in &mut leds {
-            l.set_low();
+            l.toggle();
         }
         delay.delay_ms(1_000_u16);
     }

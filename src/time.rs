@@ -13,7 +13,7 @@
 //! all equivalent, however the `2.MHz()` variant should be preferred for readability.
 //!
 //! ```rust
-//! use stm32f1xx_hal::{
+//! use py32f0xx_hal::{
 //!     time::Hertz,
 //!     // Imports U32Ext trait
 //!     prelude::*,
@@ -52,22 +52,27 @@ impl U32Ext for u32 {
     }
 }
 
+/// Convert [u32] to [Hertz]
 pub const fn Hz(val: u32) -> Hertz {
     Hertz::from_raw(val)
 }
 
+/// convert [u32] to [KiloHertz]
 pub const fn kHz(val: u32) -> KiloHertz {
     KiloHertz::from_raw(val)
 }
 
+/// convert [u32] to [MegaHertz]
 pub const fn MHz(val: u32) -> MegaHertz {
     MegaHertz::from_raw(val)
 }
 
+/// convert [u32] to [MilliSeconds]
 pub const fn ms(val: u32) -> MilliSeconds {
     MilliSeconds::from_ticks(val)
 }
 
+/// convert [u32] to [MicroSeconds]
 pub const fn us(val: u32) -> MicroSeconds {
     MicroSeconds::from_ticks(val)
 }

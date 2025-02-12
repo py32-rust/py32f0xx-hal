@@ -15,12 +15,19 @@ use crate::gpio::{gpiof::*, AF0, AF4};
 use crate::gpio::{gpioc::*, AF3};
 
 // Output channels marker traits
+/// Timer channel 1 Output Pin
 pub trait PinC1<TIM> {}
+/// Timer channel 1 Complementary Pin
 pub trait PinC1N<TIM> {}
+/// Timer channel 2 Output Pin
 pub trait PinC2<TIM> {}
+/// Timer channel 2 Complementary Pin
 pub trait PinC2N<TIM> {}
+/// Timer channel 3 Output Pin
 pub trait PinC3<TIM> {}
+/// Timer channel 3 Complementary Pin
 pub trait PinC3N<TIM> {}
+/// Timer channel 4 Output Pin
 pub trait PinC4<TIM> {}
 
 macro_rules! channel_impl {
