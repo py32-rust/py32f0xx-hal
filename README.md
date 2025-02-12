@@ -71,6 +71,12 @@ panic-halt = "0.2.0"
 py32f0xx-hal = { version = "0.2.2", features = ["py32f002ax5"]}
 ```
 
+## Optional Features
+
+- __rtic__ this feature includes a `monotonic` timer module for use with that crate
+- __defmt__ Adds ```derive(defmt::Format)``` to `Error` types in this crate
+- __rt__ Enables the `rt` feature in the `py32f0` crate
+
 If you are unfamiliar with embedded development using Rust, there are a number of fantastic resources available to help.
 
 - [Embedded Rust Documentation](https://docs.rust-embedded.org/)

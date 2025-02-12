@@ -28,7 +28,6 @@ embedded-hal = "1.0"
 embedded-hal-nb = "1.0"
 embedded-dma = "0.2.0"
 embedded-io = "0.6.1"
-embedded-time = "0.12.1"
 nb = "1.1.0"
 void = { version = "1.0.2", default-features = false }
 defmt = { version = "0.3.8", optional = true }

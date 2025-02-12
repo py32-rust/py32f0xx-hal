@@ -22,11 +22,14 @@ All notable changes to this project will be documented in this file.
 - Removed BUGBUG comment in gpio.rs
 - Removed allow unsafe directive in rtc.rs
 - Removed `pwm` separate module, reimplemented in `timer`
+- Removed use of `bitflags` crate in timer.rs
+- Removed `embedded-time` from Cargo.toml
 
 ### Fixed
 
 - Checked against datasheets and corrected I2C pins in `i2c_pins` macro
 - Fixed warning in rcc.rs
+- Fixed array register call in monotonic.rs
 
 ## v0.2.2 - 2025-02-07
 
