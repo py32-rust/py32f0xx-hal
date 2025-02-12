@@ -444,21 +444,21 @@ impl Adc {
 
     /// Set the Adc sampling time
     ///
-    /// Options can be found in [AdcSampleTime](crate::adc::AdcSampleTime).
+    /// Options can be found in [AdcSampleTime]
     pub fn set_sample_time(&mut self, t_samp: AdcSampleTime) {
         self.sample_time = t_samp;
     }
 
     /// Set the Adc result alignment
     ///
-    /// Options can be found in [AdcAlign](crate::adc::AdcAlign).
+    /// Options can be found in [AdcAlign]
     pub fn set_align(&mut self, align: AdcAlign) {
         self.align = align;
     }
 
     /// Set the Adc precision
     ///
-    /// Options can be found in [AdcPrecision](crate::adc::AdcPrecision).
+    /// Options can be found in [AdcPrecision]
     pub fn set_precision(&mut self, precision: AdcPrecision) {
         self.precision = precision;
     }

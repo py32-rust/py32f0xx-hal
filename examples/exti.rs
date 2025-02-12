@@ -25,6 +25,7 @@ static mut INT_PIN: MaybeUninit<py32f0xx_hal::gpio::gpioa::PA11<Input<Floating>>
     MaybeUninit::uninit();
 
 #[interrupt]
+#[allow(static_mut_refs)]
 fn EXTI4_15() {
     let led = unsafe { &mut *LED.as_mut_ptr() };
     let int_pin = unsafe { &mut *INT_PIN.as_mut_ptr() };
@@ -48,9 +49,11 @@ fn main() -> ! {
 
         let gpioa = p.GPIOA.split();
 
+        #[allow(static_mut_refs)]
         let led = unsafe { &mut *LED.as_mut_ptr() };
         *led = gpioa.pa12.into_push_pull_output();
 
+        #[allow(static_mut_refs)]
         let int_pin = unsafe { &mut *INT_PIN.as_mut_ptr() };
         *int_pin = gpioa.pa11.into_floating_input();
         int_pin.make_interrupt_source(&mut p.EXTI);

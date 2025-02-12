@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-//! API for the integrate SPI peripherals
+//! API for the integrated SPI peripherals
 //!
 //! The spi bus acts as the master (generating the clock) and you need to handle the CS separately.
 //!
@@ -118,7 +118,9 @@ pub enum Error {
     ModeFault,
 }
 
+/// Extension trait for SPI devices
 pub trait SpiExt: Sized + Instance {
+    /// Use SPI in master mode with 8 bit words
     fn spi<SCKPIN, MISOPIN, MOSIPIN>(
         self,
         pins: (Option<SCKPIN>, Option<MISOPIN>, Option<MOSIPIN>),
@@ -130,6 +132,7 @@ pub trait SpiExt: Sized + Instance {
         SCKPIN: SckPin<Self>,
         MISOPIN: MisoPin<Self>,
         MOSIPIN: MosiPin<Self>;
+    /// Use SPI in master mode with 16 bit words
     fn spi_u16<SCKPIN, MISOPIN, MOSIPIN>(
         self,
         pins: (Option<SCKPIN>, Option<MISOPIN>, Option<MOSIPIN>),
@@ -144,6 +147,7 @@ pub trait SpiExt: Sized + Instance {
     {
         Self::spi(self, pins, mode, freq, clocks).frame_size_16bit()
     }
+    /// Use SPI in slave mode with 8 bit words
     fn spi_slave<SCKPIN, MISOPIN, MOSIPIN>(
         self,
         pins: (Option<SCKPIN>, Option<MISOPIN>, Option<MOSIPIN>),
@@ -153,6 +157,7 @@ pub trait SpiExt: Sized + Instance {
         SCKPIN: SckPin<Self>,
         MISOPIN: MisoPin<Self>,
         MOSIPIN: MosiPin<Self>;
+    /// Use SPI in slave mode with 16 bit words
     fn spi_slave_u16<SCKPIN, MISOPIN, MOSIPIN>(
         self,
         pins: (Option<SCKPIN>, Option<MISOPIN>, Option<MOSIPIN>),
@@ -196,6 +201,7 @@ impl<SPI: Instance> SpiExt for SPI {
     }
 }
 
+/// SPI with a frame size, common to master and slave modes
 pub struct SpiInner<SPI, W> {
     spi: SPI,
     _framesize: PhantomData<W>,
@@ -242,6 +248,7 @@ impl<SPI: Instance, SCKPIN, MISOPIN, MOSIPIN, W> DerefMut
 impl<SPI: Instance, SCKPIN, MISOPIN, MOSIPIN, W> Deref
     for SpiSlave<SPI, SCKPIN, MISOPIN, MOSIPIN, W>
 {
+    /// The SPI hardware with frame size
     type Target = SpiInner<SPI, W>;
     fn deref(&self) -> &Self::Target {
         &self.inner
@@ -256,6 +263,7 @@ impl<SPI: Instance, SCKPIN, MISOPIN, MOSIPIN, W> DerefMut
     }
 }
 
+/// Instance of a specific SPI peripheral
 pub trait Instance:
     crate::Sealed + Deref<Target = crate::pac::spi1::RegisterBlock> + Enable + Reset + BusClock
 {
@@ -265,8 +273,11 @@ impl Instance for pac::SPI1 {}
 #[cfg(feature = "py32f030")]
 impl Instance for pac::SPI2 {}
 
+/// trait for SPI Sck pins
 pub trait SckPin<SPI> {}
+/// trait for SPI MISO pins
 pub trait MisoPin<SPI> {}
+/// trait for SPI MOSI pins
 pub trait MosiPin<SPI> {}
 
 macro_rules! spi_pins {
@@ -448,7 +459,7 @@ impl<SPI: Instance, SCKPIN, MISOPIN, MOSIPIN, WIDTH: Copy>
             pins,
         }
     }
-
+    /// Release the SPI instance and any pins used
     pub fn release(self) -> (SPI, (Option<SCKPIN>, Option<MISOPIN>, Option<MOSIPIN>)) {
         (self.inner.spi, self.pins)
     }
@@ -510,7 +521,7 @@ impl<SPI: Instance, SCKPIN, MISOPIN, MOSIPIN, WIDTH: Copy>
             pins,
         }
     }
-
+    /// Release the SPI instance with any pins
     pub fn release(self) -> (SPI, (Option<SCKPIN>, Option<MISOPIN>, Option<MOSIPIN>)) {
         (self.inner.spi, self.pins)
     }
@@ -643,9 +654,13 @@ impl<SPI: Instance, SCKPIN, MISOPIN, MOSIPIN> SpiSlave<SPI, SCKPIN, MISOPIN, MOS
     }
 }
 
+/// Trait for SPI instance that can read and write
 pub trait SpiReadWrite<T> {
+    /// Read the SPI data register
     fn read_data_reg(&mut self) -> T;
+    /// Write the SPI data register
     fn write_data_reg(&mut self, data: T);
+    /// Write a slice to the SPI data register, blocking
     fn spi_write(&mut self, words: &[T]) -> Result<(), Error>;
 }
 
@@ -695,6 +710,7 @@ where
     SPI: Instance,
     W: Copy,
 {
+    /// Read a word from the SPI device, non-blocking
     pub fn read_nonblocking(&mut self) -> nb::Result<W, Error> {
         let sr = self.spi.sr.read();
 
@@ -710,6 +726,7 @@ where
             nb::Error::WouldBlock
         })
     }
+    /// Write a word to the SPI device, non-blocking
     pub fn write_nonblocking(&mut self, data: W) -> nb::Result<(), Error> {
         let sr = self.spi.sr.read();
 
@@ -724,6 +741,7 @@ where
             nb::Error::WouldBlock
         })
     }
+    /// Write a slice of words to the SPI device, blocking
     pub fn write(&mut self, words: &[W]) -> Result<(), Error> {
         self.spi_write(words)
     }

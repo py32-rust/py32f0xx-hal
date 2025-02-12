@@ -36,7 +36,7 @@ Supported
 | FLASH      |            |                |                |
 | COMP       |            |                |                |
 | Timer(PWM) | ✅        | ✅              | ✅              |
-| Watchdog   | ✅        | ✅              | ✅             |
+| Watchdog   | ❓        | ❓              | ❓             |
 | LED        | N/A        | N/A             |               |
 
 

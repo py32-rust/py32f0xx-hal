@@ -1,5 +1,6 @@
 use super::*;
 
+/// Type alias for an [ErasedPin]
 pub type AnyPin<MODE> = ErasedPin<MODE>;
 
 macro_rules! impl_pxx {
@@ -9,6 +10,7 @@ macro_rules! impl_pxx {
         /// `MODE` is one of the pin modes (see [Modes](crate::gpio#modes) section).
         pub enum ErasedPin<MODE> {
             $(
+                /// Partially erased pin
                 $pin(PartiallyErasedPin<$port_id, MODE>)
             ),*
         }
@@ -32,24 +34,25 @@ macro_rules! impl_pxx {
         }
 
         impl<MODE> ErasedPin<Output<MODE>> {
+            /// Set a pin to high level
             pub fn set_high(&mut self) {
                 match self {
                     $(Self::$pin(pin) => pin.set_high()),*
                 }
             }
-
+            /// Set a pin to low level
             pub fn set_low(&mut self) {
                 match self {
                     $(Self::$pin(pin) => pin.set_low()),*
                 }
             }
-
+            /// returns true if pin is set to high level
             pub fn is_set_high(&self) -> bool {
                 match self {
                     $(Self::$pin(pin) => pin.is_set_high()),*
                 }
             }
-
+            /// returns true if pin is set to low level
             pub fn is_set_low(&self) -> bool {
                 match self {
                     $(Self::$pin(pin) => pin.is_set_low()),*
@@ -58,12 +61,13 @@ macro_rules! impl_pxx {
         }
 
         impl<MODE> ErasedPin<Input<MODE>> {
+            /// returns true if pin is at high level
             pub fn is_high(&self) -> bool {
                 match self {
                     $(Self::$pin(pin) => pin.is_high()),*
                 }
             }
-
+            /// returns true if pin is at low level
             pub fn is_low(&self) -> bool {
                 match self {
                     $(Self::$pin(pin) => pin.is_low()),*
@@ -72,12 +76,14 @@ macro_rules! impl_pxx {
         }
 
         impl ErasedPin<Output<OpenDrain>> {
+            /// returns true if pin is at high level
             pub fn is_high(&self) -> bool {
                 match self {
                     $(Self::$pin(pin) => pin.is_high()),*
                 }
             }
 
+            /// returns true if pin is at low level
             pub fn is_low(&self) -> bool {
                 match self {
                     $(Self::$pin(pin) => pin.is_low()),*
@@ -88,6 +94,7 @@ macro_rules! impl_pxx {
 }
 
 impl<MODE> ErasedPin<Output<MODE>> {
+    /// Get the [PinState] of a pin
     #[inline(always)]
     pub fn get_state(&self) -> PinState {
         if self.is_set_low() {
@@ -97,6 +104,7 @@ impl<MODE> ErasedPin<Output<MODE>> {
         }
     }
 
+    /// Set the [PinState] of a pin
     #[inline(always)]
     pub fn set_state(&mut self, state: PinState) {
         match state {
@@ -105,6 +113,7 @@ impl<MODE> ErasedPin<Output<MODE>> {
         }
     }
 
+    /// Toggle the pin from a high level to low level, or the reverse
     #[inline(always)]
     pub fn toggle(&mut self) {
         if self.is_set_low() {

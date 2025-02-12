@@ -1,6 +1,6 @@
-//! API for the IWDG
+//! API for the IWDG (Watchdog)
 //!
-//! You can activate the watchdog by calling `start` or the setting appropriate
+//! You can activate the watchdog by calling `start` or by setting the appropriate
 //! device option bit when programming.
 //!
 //! After activating the watchdog, you'll have to regularly `feed` the watchdog.
@@ -91,6 +91,9 @@ impl From<Hertz> for IwdgTimeout {
 }
 
 impl Watchdog {
+    /// Create a new [Watchdog]
+    ///
+    /// Modifies the RCC registers to turn on LSI clock
     pub fn new(rcc: &mut Rcc, iwdg: IWDG) -> Self {
         rcc.regs.csr.modify(|_, w| w.lsion().on());
         while rcc.regs.csr.read().lsirdy().is_not_ready() {}

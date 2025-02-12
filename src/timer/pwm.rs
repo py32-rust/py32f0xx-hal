@@ -1,13 +1,15 @@
 /*!
   # Pulse width modulation
 
-  The general purpose timers (`TIM1`, `TIM3`, `TIM14`, `TIM16`, and `TIM17`) can be used to output
-  pulse width modulated signals on some pins. The timers support up to 4 simultaneous pwm outputs in separate `Channels`
+  The general purpose timers can be used to output pulse width
+  modulated signals on some pins. The timers support up to 4
+  simultaneous pwm outputs in separate `Channels`
 
   ## Usage for pre-defined channel combinations
 
-  This crate defines channel combinations where all the channels are enabled. Start by setting all the pins for the
-  timer you want to use to alternate functions:
+  This crate defines channel combinations where all the channels are
+  enabled. Start by setting all the pins for the timer you want to use
+  to the correct alternate functions:
 
   ```rust
   let gpioa = ..; // Set up and split GPIOA
@@ -30,22 +32,34 @@
   ```
 */
 
-use super::{compute_arr_presc, Channel, FTimer, Instance, Ocm, Timer, WithPwm};
+use super::{
+    compute_arr_presc, Channel, FTimer, Instance, Ocm, OcmNPolarity, OcmPolarity, Timer, WithPwm,
+};
 use crate::rcc::Clocks;
 use core::marker::PhantomData;
 use core::ops::{Deref, DerefMut};
 use fugit::{HertzU32 as Hertz, TimerDurationU32};
 
+/// Trait for a list of PWM pins on a given [Timer]
 pub trait Pins<TIM, P> {
+    /// Channel 1 Output Pin used
     const C1: bool = false;
+    /// Channel 1 Complementary Output Pin used
     const C1N: bool = false;
+    /// Channel 2 Output Pin used
     const C2: bool = false;
+    /// Channel 2 Complementary Output Pin used
     const C2N: bool = false;
+    /// Channel 3 Output Pin used
     const C3: bool = false;
+    /// Channel 3 Complementary Output Pin used
     const C3N: bool = false;
+    /// Channel 4 Output Pin used
     const C4: bool = false;
+    /// The channel list type
     type Channels;
 
+    /// Check if a given channel number is in use
     fn check_used(c: Channel) -> Channel {
         if (c == Channel::C1 && Self::C1)
             || (c == Channel::C2 && Self::C2)
@@ -58,6 +72,7 @@ pub trait Pins<TIM, P> {
         }
     }
 
+    /// Split the Channels
     fn split() -> Self::Channels;
 }
 
@@ -69,46 +84,57 @@ use crate::timer::PinC3;
 use crate::timer::PinC3N;
 use crate::timer::PinC4;
 
+/// trait for Output Pin/Complementary Pin
 pub trait OcPin {
+    /// Channel number of pin
     const CN: u8 = 0;
+    /// True if the pin is a complementary pin
     const COMP: bool = false;
 }
+/// Channel 1 Pin
 pub struct C1;
 impl OcPin for C1 {
     const CN: u8 = 0;
     const COMP: bool = false;
 }
+/// Channel 1 Complementary Pin
 pub struct C1N;
 impl OcPin for C1N {
     const CN: u8 = 0;
     const COMP: bool = true;
 }
+/// Channel 2 Pin
 pub struct C2;
 impl OcPin for C2 {
     const CN: u8 = 1;
     const COMP: bool = false;
 }
+/// Channel 2 Complementary Pin
 pub struct C2N;
 impl OcPin for C2N {
     const CN: u8 = 1;
     const COMP: bool = true;
 }
+/// Channel 3 Pin
 pub struct C3;
 impl OcPin for C3 {
     const CN: u8 = 2;
     const COMP: bool = false;
 }
+/// Channel 3 Complementary Pin
 pub struct C3N;
 impl OcPin for C3N {
     const CN: u8 = 2;
     const COMP: bool = true;
 }
+/// Channel 4 Pin
 pub struct C4;
 impl OcPin for C4 {
     const CN: u8 = 3;
     const COMP: bool = false;
 }
 
+/// PWM Channel
 pub struct PwmChannel<TIM, OP> {
     _op: PhantomData<OP>,
     _tim: PhantomData<TIM>,
@@ -185,10 +211,12 @@ impl<TIM, P1: PinC4<TIM>, P2: PinC4<TIM>, P3: PinC4<TIM>, P4: PinC4<TIM>> PinC4<
 {
 }
 
+/// Extension trait to alter a [Timer] to a [Pwm]
 pub trait PwmExt
 where
     Self: Sized + Instance + WithPwm,
 {
+    /// Configure a [Timer] into a [Pwm] with a list of pins and a duration
     fn pwm<P, PINS, const FREQ: u32>(
         self,
         pins: PINS,
@@ -198,10 +226,12 @@ where
     where
         PINS: Pins<Self, P>;
 
+    /// Configure a [Timer] into a [PwmHz] with a list of pins and a frequency
     fn pwm_hz<P, PINS>(self, pins: PINS, freq: Hertz, clocks: &Clocks) -> PwmHz<Self, P, PINS>
     where
         PINS: Pins<Self, P>;
 
+    /// Configure a [Timer] into a [Pwm] with a list of pins and a duration in μs
     fn pwm_us<P, PINS>(
         self,
         pins: PINS,
@@ -219,6 +249,7 @@ impl<TIM> PwmExt for TIM
 where
     Self: Sized + Instance + WithPwm,
 {
+    /// Configure a [Timer] into a [Pwm] with a list of pins and a duration
     fn pwm<P, PINS, const FREQ: u32>(
         self,
         pins: PINS,
@@ -231,6 +262,7 @@ where
         FTimer::<Self, FREQ>::new(self, clocks).pwm(pins, time)
     }
 
+    /// Configure a [Timer] into a [PwmHz] with a list of pins and a frequency
     fn pwm_hz<P, PINS>(self, pins: PINS, time: Hertz, clocks: &Clocks) -> PwmHz<TIM, P, PINS>
     where
         PINS: Pins<TIM, P>,
@@ -249,6 +281,7 @@ impl<TIM: Instance + WithPwm, OP> PwmChannel<TIM, OP> {
 }
 
 impl<TIM: Instance + WithPwm, OP: OcPin> PwmChannel<TIM, OP> {
+    /// Disable the PWM Channel
     #[inline]
     pub fn disable(&mut self) {
         if OP::COMP {
@@ -258,6 +291,7 @@ impl<TIM: Instance + WithPwm, OP: OcPin> PwmChannel<TIM, OP> {
         }
     }
 
+    /// Enable the PWM Channel
     #[inline]
     pub fn enable(&mut self) {
         if OP::COMP {
@@ -267,6 +301,7 @@ impl<TIM: Instance + WithPwm, OP: OcPin> PwmChannel<TIM, OP> {
         }
     }
 
+    /// Get the duty on the PWM Channel
     #[inline]
     pub fn get_duty(&self) -> u16 {
         TIM::read_cc_value(OP::CN) as u16
@@ -278,12 +313,14 @@ impl<TIM: Instance + WithPwm, OP: OcPin> PwmChannel<TIM, OP> {
         (TIM::read_auto_reload() as u16).wrapping_add(1)
     }
 
+    /// Set the duty on the PWM Channel
     #[inline]
     pub fn set_duty(&mut self, duty: u16) {
         TIM::set_cc_value(OP::CN, duty as u32)
     }
 }
 
+/// PWM at specificy frequence with list of pins
 pub struct PwmHz<TIM, P, PINS>
 where
     TIM: Instance + WithPwm,
@@ -298,12 +335,14 @@ where
     TIM: Instance + WithPwm,
     PINS: Pins<TIM, P>,
 {
+    /// Release the Timer instance and pins
     pub fn release(mut self) -> Timer<TIM> {
         // stop timer
         self.tim.cr1_reset();
         self.timer
     }
 
+    /// Split the DMA channels from [PwmHz]
     pub fn split(self) -> PINS::Channels {
         PINS::split()
     }
@@ -331,30 +370,42 @@ where
 }
 
 impl<TIM: Instance + WithPwm> Timer<TIM> {
+    /// Configure a PWM timer with a list of pins and a period in [Hertz]
     pub fn pwm_hz<P, PINS>(mut self, _pins: PINS, freq: Hertz) -> PwmHz<TIM, P, PINS>
     where
         PINS: Pins<TIM, P>,
     {
-        if PINS::C1N | PINS::C1N | PINS::C1N {
-            self.tim.set_comp_off_state_run_mode(true);
+        if PINS::C1N | PINS::C2N | PINS::C3N {
+            self.tim.set_comp_off_state_run_mode(false);
         }
         if PINS::C1 {
             self.tim
-                .preload_output_channel_in_mode(Channel::C1, Ocm::PwmMode1);
+                .preload_output_channel_in_mode(Channel::C1, Ocm::PwmMode1, OcmPolarity::High);
         }
         if PINS::C2 && TIM::CH_NUM > 1 {
             self.tim
-                .preload_output_channel_in_mode(Channel::C2, Ocm::PwmMode1);
+                .preload_output_channel_in_mode(Channel::C2, Ocm::PwmMode1, OcmPolarity::High);
         }
         if PINS::C3 && TIM::CH_NUM > 2 {
             self.tim
-                .preload_output_channel_in_mode(Channel::C3, Ocm::PwmMode1);
+                .preload_output_channel_in_mode(Channel::C3, Ocm::PwmMode1, OcmPolarity::High);
         }
         if PINS::C4 && TIM::CH_NUM > 3 {
             self.tim
-                .preload_output_channel_in_mode(Channel::C4, Ocm::PwmMode1);
+                .preload_output_channel_in_mode(Channel::C4, Ocm::PwmMode1, OcmPolarity::High);
         }
-
+        if PINS::C1N && TIM::CHN_NUM > 0 {
+            self.tim
+                .set_output_compn_polarity(Channel::C1, OcmNPolarity::High);
+        }
+        if PINS::C2N && TIM::CHN_NUM > 1 {
+            self.tim
+                .set_output_compn_polarity(Channel::C2, OcmNPolarity::High);
+        }
+        if PINS::C3N && TIM::CHN_NUM > 2 {
+            self.tim
+                .set_output_compn_polarity(Channel::C3, OcmNPolarity::High);
+        }
         // The reference manual is a bit ambiguous about when enabling this bit is really
         // necessary, but since we MUST enable the preload for the output channels then we
         // might as well enable for the auto-reload too
@@ -376,32 +427,56 @@ impl<TIM: Instance + WithPwm> Timer<TIM> {
     }
 }
 
+/// Functions for a Timer in PWM mode
 impl<TIM, P, PINS> PwmHz<TIM, P, PINS>
 where
     TIM: Instance + WithPwm,
     PINS: Pins<TIM, P>,
 {
+    /// Enable a [Channel]
+    ///
+    /// Panic's if channel number is not possible for this timer
+    /// To avoid panics, split the channels from the timer and
+    /// use the individual channel
     pub fn enable(&mut self, channel: Channel) {
         TIM::enable_channel(PINS::check_used(channel) as u8, true)
     }
 
+    /// Disable a [Channel]
+    ///
+    /// Panic's if channel number is not possible for this timer
+    /// To avoid panic's, split the channels from the timer and
+    /// use the individual channel
     pub fn disable(&mut self, channel: Channel) {
         TIM::enable_channel(PINS::check_used(channel) as u8, false)
     }
 
+    /// Get the current duty of a [Channel]
+    ///
+    /// Panic's if channel number is not possible for this timer
+    /// To avoid panic's, split the channels from the timer and
+    /// use the individual channel
     pub fn get_duty(&self, channel: Channel) -> u16 {
         TIM::read_cc_value(PINS::check_used(channel) as u8) as u16
     }
 
+    /// Set the duty on a [Channel]
+    ///
+    /// Panic's if channel number is not possible for this timer
+    /// To avoid panic's, split the channels from the timer and
+    /// use the individual channel
     pub fn set_duty(&mut self, channel: Channel, duty: u16) {
         TIM::set_cc_value(PINS::check_used(channel) as u8, duty as u32)
     }
 
+    /// Get the maximum possible duty for this timer
+    ///
     /// If `0` returned means max_duty is 2^16
     pub fn get_max_duty(&self) -> u16 {
         (TIM::read_auto_reload() as u16).wrapping_add(1)
     }
 
+    /// Get the Clock rate of this timer
     pub fn get_period(&self) -> Hertz {
         let clk = self.clk;
         let psc = self.tim.read_prescaler() as u32;
@@ -411,6 +486,7 @@ where
         clk / ((psc + 1) * (arr + 1))
     }
 
+    /// Set the Clock rate for this timer
     pub fn set_period(&mut self, period: Hertz) {
         let clk = self.clk;
 
@@ -420,6 +496,7 @@ where
     }
 }
 
+/// PWM timer
 pub struct Pwm<TIM, P, PINS, const FREQ: u32>
 where
     TIM: Instance + WithPwm,
@@ -434,10 +511,12 @@ where
     TIM: Instance + WithPwm,
     PINS: Pins<TIM, P>,
 {
+    /// Split DMA channels from self
     pub fn split(self) -> PINS::Channels {
         PINS::split()
     }
 
+    /// Release the timer
     pub fn release(mut self) -> FTimer<TIM, FREQ> {
         // stop counter
         self.tim.cr1_reset();
@@ -467,6 +546,7 @@ where
 }
 
 impl<TIM: Instance + WithPwm, const FREQ: u32> FTimer<TIM, FREQ> {
+    /// Create a [Pwm] with a list of pins and a maximum cycle duration
     pub fn pwm<P, PINS>(
         mut self,
         _pins: PINS,
@@ -475,24 +555,36 @@ impl<TIM: Instance + WithPwm, const FREQ: u32> FTimer<TIM, FREQ> {
     where
         PINS: Pins<TIM, P>,
     {
-        if PINS::C1N | PINS::C1N | PINS::C1N {
-            self.tim.set_comp_off_state_run_mode(true);
+        if PINS::C1N | PINS::C2N | PINS::C3N {
+            self.tim.set_comp_off_state_run_mode(false);
         }
         if PINS::C1 {
             self.tim
-                .preload_output_channel_in_mode(Channel::C1, Ocm::PwmMode1);
+                .preload_output_channel_in_mode(Channel::C1, Ocm::PwmMode1, OcmPolarity::High);
         }
         if PINS::C2 && TIM::CH_NUM > 1 {
             self.tim
-                .preload_output_channel_in_mode(Channel::C2, Ocm::PwmMode1);
+                .preload_output_channel_in_mode(Channel::C2, Ocm::PwmMode1, OcmPolarity::High);
         }
         if PINS::C3 && TIM::CH_NUM > 2 {
             self.tim
-                .preload_output_channel_in_mode(Channel::C3, Ocm::PwmMode1);
+                .preload_output_channel_in_mode(Channel::C3, Ocm::PwmMode1, OcmPolarity::High);
         }
         if PINS::C4 && TIM::CH_NUM > 3 {
             self.tim
-                .preload_output_channel_in_mode(Channel::C4, Ocm::PwmMode1);
+                .preload_output_channel_in_mode(Channel::C4, Ocm::PwmMode1, OcmPolarity::High);
+        }
+        if PINS::C1N && TIM::CHN_NUM > 0 {
+            self.tim
+                .set_output_compn_polarity(Channel::C1, OcmNPolarity::High);
+        }
+        if PINS::C2N && TIM::CHN_NUM > 1 {
+            self.tim
+                .set_output_compn_polarity(Channel::C2, OcmNPolarity::High);
+        }
+        if PINS::C3N && TIM::CHN_NUM > 2 {
+            self.tim
+                .set_output_compn_polarity(Channel::C3, OcmNPolarity::High);
         }
 
         // The reference manual is a bit ambiguous about when enabling this bit is really
@@ -519,18 +611,38 @@ where
     TIM: Instance + WithPwm,
     PINS: Pins<TIM, P>,
 {
+    /// Enable a channel
+    ///
+    /// Panic's if the channel is not available on this timer
+    /// To avoid panic's, split the channels from the timer and
+    /// use the individual channel
     pub fn enable(&mut self, channel: Channel) {
         TIM::enable_channel(PINS::check_used(channel) as u8, true)
     }
 
+    /// Disable a channel
+    ///
+    /// Panic's if the channel is not available on this timer
+    /// To avoid panic's, split the channels from the timer and
+    /// use the individual channel
     pub fn disable(&mut self, channel: Channel) {
         TIM::enable_channel(PINS::check_used(channel) as u8, false)
     }
 
+    /// Get the duty cycle on a channel
+    ///
+    /// Panic's if the channel is not available on this timer
+    /// To avoid panic's, split the channels from the timer and
+    /// use the individual channel
     pub fn get_duty(&self, channel: Channel) -> u16 {
         TIM::read_cc_value(PINS::check_used(channel) as u8) as u16
     }
 
+    /// Set the duty cycle on a channel
+    ///
+    /// Panic's if the channel is not available on this timer
+    /// To avoid panic's, split the channels from the timer and
+    /// use the individual channel
     pub fn set_duty(&mut self, channel: Channel, duty: u16) {
         TIM::set_cc_value(PINS::check_used(channel) as u8, duty.into())
     }
@@ -540,10 +652,15 @@ where
         (TIM::read_auto_reload() as u16).wrapping_add(1)
     }
 
+    /// Get the current duty period on the timer
     pub fn get_period(&self) -> TimerDurationU32<FREQ> {
         TimerDurationU32::from_ticks(TIM::read_auto_reload() + 1)
     }
 
+    /// Set the duty period on the timer
+    ///
+    /// Sets the period using the auto reload, it will take effect once
+    /// the timer counter hits previous period
     pub fn set_period(&mut self, period: TimerDurationU32<FREQ>) {
         self.tim.set_auto_reload(period.ticks() - 1).unwrap();
     }

@@ -21,8 +21,11 @@ pub struct RtcClkLse;
 /// RTC clock source LSI oscillator clock (type state)
 pub struct RtcClkLsi;
 
+/// Enum to track the state for RTC re-initialization
 pub enum RestoredOrNewRtc<CS> {
+    /// Restored
     Restored(Rtc<CS>),
+    /// New
     New(Rtc<CS>),
 }
 

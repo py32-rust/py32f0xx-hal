@@ -1,10 +1,37 @@
+//! API for Timer Counters
+//! # Counters
+//!
+//! The general purpose timers and the SysTick timer can be used to
+//! implement periodic counting timers.
+//!
+//! ```
+//! let mut timer = p.TIM3.counter_hz(&rcc.clocks);
+//! timer.start(1.Hz()).unwrap();
+//! loop {
+//!     // ... do something here
+//!     nb::block!(timer.wait()).unwrap();
+//! }
+//! ```
+//!
+//! Using the SysTick timer
+//! ```
+//! let cp = cortex_m::peripheral::Peripherals::take().unwrap();
+//! let mut timer = cp.SYST.counter_us(&rcc.clocks);
+//! timer.start(10.millis()).unwrap();
+//! loop {
+//!     // ... do something here
+//!     nb::block!(timer.wait()).unwrap();
+//! }
+//! ```
+//!
+
 use super::{compute_arr_presc, Error, Event, FTimer, Instance, SysEvent, Timer};
 use crate::pac::SYST;
 use core::convert::TryFrom;
 use core::ops::{Deref, DerefMut};
 use fugit::{HertzU32 as Hertz, MicrosDurationU32, TimerDurationU32, TimerInstantU32};
 
-/// Hardware timers
+/// Periodic timer
 pub struct CounterHz<TIM>(pub(super) Timer<TIM>);
 
 impl<T> Deref for CounterHz<T> {
@@ -30,6 +57,7 @@ impl<TIM: Instance> CounterHz<TIM> {
 }
 
 impl<TIM: Instance> CounterHz<TIM> {
+    /// Start the counter
     pub fn start(&mut self, timeout: Hertz) -> Result<(), Error> {
         // pause
         self.tim.disable_counter();
@@ -52,8 +80,9 @@ impl<TIM: Instance> CounterHz<TIM> {
         Ok(())
     }
 
+    /// Wait for counter to reach period limit, non-blocking
     pub fn wait(&mut self) -> nb::Result<(), Error> {
-        if self.tim.get_interrupt_flag().contains(Event::Update) {
+        if self.tim.has_interrupt_flag(Event::Update) {
             self.tim.clear_interrupt_flag(Event::Update);
             Ok(())
         } else {
@@ -61,6 +90,7 @@ impl<TIM: Instance> CounterHz<TIM> {
         }
     }
 
+    /// Cancel the counter, disabling the timer
     pub fn cancel(&mut self) -> Result<(), Error> {
         if !self.tim.is_counter_enabled() {
             return Err(Error::Disabled);
@@ -122,7 +152,7 @@ impl<TIM: Instance> CounterHz<TIM> {
     }
 }
 
-/// Periodic non-blocking timer that implements [embedded_hal_02::timer::CountDown]
+/// Periodic non-blocking timer
 pub struct Counter<TIM, const FREQ: u32>(pub(super) FTimer<TIM, FREQ>);
 
 impl<T, const FREQ: u32> Deref for Counter<T, FREQ> {
@@ -154,10 +184,12 @@ impl<TIM: Instance, const FREQ: u32> Counter<TIM, FREQ> {
         self.0
     }
 
+    /// Returns a [TimerInstantU32] representing current time tick
     pub fn now(&self) -> TimerInstantU32<FREQ> {
         TimerInstantU32::from_ticks(self.tim.read_count().into())
     }
 
+    /// Start the counter
     pub fn start(&mut self, timeout: TimerDurationU32<FREQ>) -> Result<(), Error> {
         // pause
         self.tim.disable_counter();
@@ -178,8 +210,9 @@ impl<TIM: Instance, const FREQ: u32> Counter<TIM, FREQ> {
         Ok(())
     }
 
+    /// Wait for counter to reach period limit, non-blocking
     pub fn wait(&mut self) -> nb::Result<(), Error> {
-        if self.tim.get_interrupt_flag().contains(Event::Update) {
+        if self.tim.has_interrupt_flag(Event::Update) {
             self.tim.clear_interrupt_flag(Event::Update);
             Ok(())
         } else {
@@ -187,6 +220,7 @@ impl<TIM: Instance, const FREQ: u32> Counter<TIM, FREQ> {
         }
     }
 
+    /// Cancel the counter, disabling the timer
     pub fn cancel(&mut self) -> Result<(), Error> {
         if !self.tim.is_counter_enabled() {
             return Err(Error::Disabled);
@@ -252,6 +286,7 @@ impl DerefMut for SysCounterHz {
 }
 
 impl SysCounterHz {
+    /// Start the counter
     pub fn start(&mut self, timeout: Hertz) -> Result<(), Error> {
         let rvr = self.clk.raw() / timeout.raw() - 1;
 
@@ -266,6 +301,7 @@ impl SysCounterHz {
         Ok(())
     }
 
+    /// Wait for counter period limit to be reached, non-blocking
     pub fn wait(&mut self) -> nb::Result<(), Error> {
         if self.tim.has_wrapped() {
             Ok(())
@@ -274,6 +310,7 @@ impl SysCounterHz {
         }
     }
 
+    /// Cancel the counter, disabling the timer
     pub fn cancel(&mut self) -> Result<(), Error> {
         if !self.tim.is_counter_enabled() {
             return Err(Error::Disabled);
@@ -284,6 +321,7 @@ impl SysCounterHz {
     }
 }
 
+/// Alias for [SysCounter], running at 1 μs rate
 pub type SysCounterUs = SysCounter<1_000_000>;
 
 /// SysTick timer with precision of 1 μs (1 MHz sampling)
@@ -317,10 +355,12 @@ impl<const FREQ: u32> SysCounter<FREQ> {
         }
     }
 
+    /// Returns a [TimerInstantU32] representing current time tick
     pub fn now(&self) -> TimerInstantU32<FREQ> {
         TimerInstantU32::from_ticks(SYST::get_current() / (self.clk.raw() / FREQ))
     }
 
+    /// Start the counter
     pub fn start(&mut self, timeout: TimerDurationU32<FREQ>) -> Result<(), Error> {
         let rvr = timeout.ticks() * (self.clk.raw() / FREQ) - 1;
 
@@ -335,6 +375,7 @@ impl<const FREQ: u32> SysCounter<FREQ> {
         Ok(())
     }
 
+    /// Wait for counter to reach period limit, non-blocking
     pub fn wait(&mut self) -> nb::Result<(), Error> {
         if self.tim.has_wrapped() {
             Ok(())
@@ -343,6 +384,7 @@ impl<const FREQ: u32> SysCounter<FREQ> {
         }
     }
 
+    /// Cancel the counter, disabling the timer
     pub fn cancel(&mut self) -> Result<(), Error> {
         if !self.tim.is_counter_enabled() {
             return Err(Error::Disabled);

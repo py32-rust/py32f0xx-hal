@@ -1,4 +1,27 @@
-//! Delays
+//! API for Timer Delays
+//! # Delay
+//!
+//! The general purpose timers and the SysTick timer can be used to
+//! implement delay timers
+//!
+//! ```
+//! let mut delay = p.TIM16.delay_us(&rcc.clocks);
+//! loop {
+//!     // ... do something here
+//!     delay.delay(10.micros());
+//! }
+//! ```
+//!
+//! Using the SysTick timer
+//! ```
+//! let cp = cortex_m::peripheral::Peripherals::take().unwrap();
+//! let mut delay = cp.SYST.delay(&rcc.clocks);
+//! loop {
+//!     // ... do something here
+//!     delay.delay(10.millis());
+//! }
+//! ```
+//!
 
 use super::{Event, FTimer, Instance, OnePulseMode, Timer};
 use core::ops::{Deref, DerefMut};
@@ -29,12 +52,14 @@ impl SysDelay {
 }
 
 impl Timer<SYST> {
+    /// Create a [SysDelay] instance
     pub fn delay(self) -> SysDelay {
         SysDelay(self)
     }
 }
 
 impl SysDelay {
+    /// Delay in μs, blocking
     pub fn delay(&mut self, us: MicrosDurationU32) {
         // The SysTick Reload Value register supports values between 1 and 0x00FFFFFF.
         const MAX_RVR: u32 = 0x00FF_FFFF;
@@ -104,12 +129,13 @@ impl<TIM: Instance, const FREQ: u32> Delay<TIM, FREQ> {
             // Update the tracking variable while we are waiting...
             ticks -= reload;
             // Wait for update to happen
-            while self.tim.get_interrupt_flag() != Event::Update { /* wait */ }
+            while !self.tim.has_interrupt_flag(Event::Update) { /* wait */ }
             // disable the counter
             self.tim.disable_counter();
         }
     }
 
+    /// Get the Maximum delay possible, for use in `delay`
     pub fn max_delay(&self) -> TimerDurationU32<FREQ> {
         TimerDurationU32::from_ticks(TIM::max_auto_reload())
     }
@@ -172,6 +198,7 @@ impl<TIM: Instance + OnePulseMode, const FREQ: u32> OpmDelay<TIM, FREQ> {
         }
     }
 
+    /// Get the maximum delay possible, for use in `delay`
     pub fn max_delay(&self) -> TimerDurationU32<FREQ> {
         TimerDurationU32::from_ticks(TIM::max_auto_reload())
     }
