@@ -1,6 +1,6 @@
 //! RTIC Monotonic implementation
 //!
-//! To use this monotonic timer implementation, use the feature `rtic`
+//! To enable this monotonic timer implementation, use the feature `rtic`
 
 use super::{FTimer, Instance};
 use crate::rcc::Clocks;
@@ -121,7 +121,10 @@ macro_rules! mono {
                     Some(_) => cnt.wrapping_add(0xffff), // Will overflow, run for as long as possible
                 };
 
+                #[cfg(any(feature = "py32f030", feature = "py32f003"))]
                 self.tim.ccr[0].write(|w| unsafe { w.ccr1().bits(val) });
+                #[cfg(any(feature = "py32f002a", feature = "py32f002b"))]
+                self.tim.ccr[0].write(|w| unsafe { w.ccr().bits(val) });
             }
 
             fn clear_compare_flag(&mut self) {

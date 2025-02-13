@@ -1,6 +1,6 @@
 [package]
 name = "py32f0xx-hal"
-version = "0.2.2"
+version = "0.3.0"
 authors = [
     "creatoy@yeah.net",
     "Greg Green <ggreen@bit-builder.com>",

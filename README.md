@@ -56,7 +56,7 @@ Getting Started
 ---------------
 The `examples` folder contains several example programs. To compile them, one must specify the target device as cargo feature:
 ```
-$ cargo build --features=py32f002ax5 --example=blinky
+$ cargo build --features=py32f030 --example=blinky
 ```
 
 To use py32f0xx-hal as a dependency in a standalone project the target device feature must be specified in the `Cargo.toml` file:
@@ -68,7 +68,7 @@ cortex-m = "0.7.7"
 cortex-m-rt = "0.7.3"
 # Panic behaviour, see https://crates.io/keywords/panic-impl for alternatives
 panic-halt = "0.2.0"
-py32f0xx-hal = { version = "0.2.2", features = ["py32f002ax5"]}
+py32f0xx-hal = { version = "0.3.0", features = ["py32f030"] }
 ```
 
 ## Optional Features
