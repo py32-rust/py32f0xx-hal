@@ -2,19 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
-## v0.3.0
+## v0.3.0 - 2025-02-14
 
 ### Added
 
 - `timer` module trait:`WithPwm` and enum:`Channel`
 - implemented `WithPwm` trait on hardware timers
 - timer module `pwm` that implements pwm using new code
-- added embedded-hal traits to hal modules in timer
+- implemented embedded-hal pwm traits
 - added `crate::timer::pwm::PwmExt` trait to prelude
 
 ### Changed
 
-- This version requires v0.2.1 of the [py32-rs](https://github.com/py32-rs/py32-rs.git) crate.
+- This version requires v0.2.1 of the [py32-rs](https://github.com/py32-rust/py32-rs.git) pac crate.
 - Updated pwm examples to use new pwm code
 
 ### Removed
