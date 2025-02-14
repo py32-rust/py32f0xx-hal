@@ -1,7 +1,5 @@
 //! API for the integrated USART ports
 //!
-//! This only implements the usual asynchronous bidirectional 8-bit transfers.
-//!
 //! It's possible to use a read-only/write-only serial implementation with
 //! `rx`/`tx`.
 //!
@@ -86,7 +84,9 @@ use crate::gpio::AF3;
 mod hal_02;
 mod hal_1;
 
+/// Trait for Serial Transmit pin
 pub trait TxPin<USART> {}
+/// Trait for Serial Receive pin
 pub trait RxPin<USART> {}
 
 /// Macro to implement `TxPin` / `RxPin` for a certain pin, using a certain
@@ -188,14 +188,18 @@ impl_pins!(
     PB6, AF1, USART1, TxPin;
 );
 
+/// Extension trait for USART peripherals
 pub trait SerialExt: Sized + Instance {
+    /// Initialize a [Serial] from the hardware
     fn serial<TXPIN, RXPIN>(
         self,
         pins: (TXPIN, RXPIN),
         config: impl Into<Config>,
         clocks: &Clocks,
     ) -> Serial<Self, TXPIN, RXPIN>;
+    /// Initialize a [Tx]-only Serial
     fn tx<TXPIN>(self, tx_pin: TXPIN, config: impl Into<Config>, clocks: &Clocks) -> Tx<Self>;
+    /// Initialize a [Rx]-only Serial
     fn rx<RXPIN>(self, rx_pin: RXPIN, config: impl Into<Config>, clocks: &Clocks) -> Rx<Self>;
 }
 
@@ -218,6 +222,7 @@ impl<USART: Instance> SerialExt for USART {
 
 use crate::pac::usart1 as uart_base;
 
+/// Instance of a Serial device
 pub trait Instance:
     crate::Sealed + Deref<Target = uart_base::RegisterBlock> + Enable + Reset + BusClock
 {
@@ -270,6 +275,8 @@ pub enum Error {
     Other,
 }
 
+/// Length of word for Serial device
+#[derive(Clone)]
 pub enum WordLength {
     /// When parity is enabled, a word has 7 data bits + 1 parity bit,
     /// otherwise 8 data bits.
@@ -279,12 +286,19 @@ pub enum WordLength {
     Bits9,
 }
 
+/// Parity for serial device transfers
+#[derive(Clone)]
 pub enum Parity {
+    /// Parity of None
     ParityNone,
+    /// Parity is Even
     ParityEven,
+    /// Parity is Odd
     ParityOdd,
 }
 
+/// Stop bits for serial device transfers
+#[derive(Debug, Clone)]
 pub enum StopBits {
     /// 1 stop bit
     STOP1,
@@ -292,54 +306,60 @@ pub enum StopBits {
     STOP2,
 }
 
+/// Configuration for serial device
 pub struct Config {
+    /// baudrate
     pub baudrate: Bps,
+    /// word size
     pub wordlength: WordLength,
+    /// parity
     pub parity: Parity,
+    /// number of stopbits
     pub stopbits: StopBits,
 }
 
 impl Config {
+    /// set the baudrate
     pub fn baudrate(mut self, baudrate: Bps) -> Self {
         self.baudrate = baudrate;
         self
     }
-
+    /// set the wordlength
     pub fn wordlength(mut self, wordlength: WordLength) -> Self {
         self.wordlength = wordlength;
         self
     }
-
+    /// set wordlength to 8 bits
     pub fn wordlength_8bits(mut self) -> Self {
         self.wordlength = WordLength::Bits8;
         self
     }
-
+    /// set wordlength to 9 bits
     pub fn wordlength_9bits(mut self) -> Self {
         self.wordlength = WordLength::Bits9;
         self
     }
-
+    /// set the parity
     pub fn parity(mut self, parity: Parity) -> Self {
         self.parity = parity;
         self
     }
-
+    /// set the parity to None
     pub fn parity_none(mut self) -> Self {
         self.parity = Parity::ParityNone;
         self
     }
-
+    /// set the parity to even
     pub fn parity_even(mut self) -> Self {
         self.parity = Parity::ParityEven;
         self
     }
-
+    /// set the parity to odd
     pub fn parity_odd(mut self) -> Self {
         self.parity = Parity::ParityOdd;
         self
     }
-
+    /// set the stop bits
     pub fn stopbits(mut self, stopbits: StopBits) -> Self {
         self.stopbits = stopbits;
         self
@@ -365,8 +385,11 @@ impl From<Bps> for Config {
 
 /// Serial abstraction
 pub struct Serial<USART: Instance, TXPIN, RXPIN> {
+    /// Transmit side
     pub tx: Tx<USART>,
+    /// Receive side
     pub rx: Rx<USART>,
+    /// keep ownership of device and pins
     #[allow(clippy::type_complexity)]
     pub token: ReleaseToken<USART, (TXPIN, RXPIN)>,
 }
@@ -388,6 +411,7 @@ pub struct ReleaseToken<USART, PINS> {
 }
 
 impl<USART: Instance, TXPIN> Serial<USART, TXPIN, ()> {
+    /// construct a transmit only serial device
     pub fn tx(
         usart: USART,
         tx_pin: TXPIN,
@@ -399,6 +423,7 @@ impl<USART: Instance, TXPIN> Serial<USART, TXPIN, ()> {
 }
 
 impl<USART: Instance, RXPIN> Serial<USART, (), RXPIN> {
+    /// construct a receive only serial device
     pub fn rx(
         usart: USART,
         rx_pin: RXPIN,
@@ -584,25 +609,25 @@ impl<USART: Instance> Tx<USART> {
             Err(nb::Error::WouldBlock)
         }
     }
-
+    /// write a byte to be transmitted, non-blocking
     pub fn write_u8(&mut self, word: u8) -> nb::Result<(), Error> {
         self.write_u16(word as u16)
     }
-
+    /// write a slice of u16 words, blocking
     pub fn bwrite_all_u16(&mut self, buffer: &[u16]) -> Result<(), Error> {
         for &w in buffer {
             nb::block!(self.write_u16(w))?;
         }
         Ok(())
     }
-
+    /// write a slice of u8 words, blocking
     pub fn bwrite_all_u8(&mut self, buffer: &[u8]) -> Result<(), Error> {
         for &w in buffer {
             nb::block!(self.write_u8(w))?;
         }
         Ok(())
     }
-
+    /// flush the transmit fifo's, non-blocking
     pub fn flush(&mut self) -> nb::Result<(), Error> {
         let usart = unsafe { &*USART::ptr() };
 
@@ -612,7 +637,7 @@ impl<USART: Instance> Tx<USART> {
             Err(nb::Error::WouldBlock)
         }
     }
-
+    /// flush the transmit fifo's, blockin
     pub fn bflush(&mut self) -> Result<(), Error> {
         nb::block!(self.flush())
     }
@@ -685,7 +710,7 @@ impl<USART: Instance> Rx<USART> {
             }
         }
     }
-
+    /// read a byte, non-blocking
     pub fn read(&mut self) -> nb::Result<u8, Error> {
         self.read_u16().map(|word16| word16 as u8)
     }
@@ -789,10 +814,14 @@ impl<USART: Instance, TXPIN, RXPIN> core::fmt::Write for Serial<USART, TXPIN, RX
     }
 }
 
+/// type alias for [Rx] on `USART1`
 pub type Rx1 = Rx<pac::USART1>;
+/// type alias for [Tx] on `USART1`
 pub type Tx1 = Tx<pac::USART1>;
+/// type alias for [Rx] on `USART2`
 #[cfg(any(feature = "py32f003", feature = "py32f030",))]
 pub type Rx2 = Rx<pac::USART2>;
+/// type alias for [Tx] on `USART2`
 #[cfg(any(feature = "py32f003", feature = "py32f030",))]
 pub type Tx2 = Tx<pac::USART2>;
 
@@ -803,6 +832,7 @@ macro_rules! serialdmarx {
     }),) => {
 
         impl Rx<$USARTX> {
+            /// Use [Rx] instance with `DMA` on [Ch]
             pub fn with_dma<DMA: DmaExt, const C: u8>(
                 self,
                 mut channel: Ch<DMA, C>,
@@ -821,6 +851,7 @@ macro_rules! serialdmarx {
         }
 
         $(
+            /// type alias for [Rx] with DMA
             pub type $rxdma = RxDma<Rx<$USARTX>, Ch<$dmaX, $ch>>;
 
             impl Receive for $rxdma {
@@ -838,6 +869,7 @@ macro_rules! serialdmarx {
             }
 
             impl $rxdma {
+                /// Release the serial device and the DMA channel
                 pub fn release(mut self) -> (Rx<$USARTX>, Ch<$dmaX, $ch>) {
                     self.stop();
                     unsafe {
@@ -942,6 +974,7 @@ macro_rules! serialdmatx {
     }),) => {
 
         impl Tx<$USARTX> {
+            /// Use [Tx] instance with `DMA` on [Ch]
             pub fn with_dma<DMA: DmaExt, const C: u8>(
                 self,
                 mut channel: Ch<DMA, C>,
@@ -960,6 +993,7 @@ macro_rules! serialdmatx {
         }
 
         $(
+            /// type alias for [Tx] with `DMA`
             pub type $txdma = TxDma<Tx<$USARTX>, Ch<$dmaX, $ch>>;
 
             impl Transmit for $txdma {
@@ -977,6 +1011,7 @@ macro_rules! serialdmatx {
             }
 
             impl $txdma {
+                /// Release the [Tx] instance with DMA [Ch]
                 pub fn release(mut self) -> (Tx<$USARTX>, Ch<$dmaX, $ch>) {
                     self.stop();
                     unsafe {

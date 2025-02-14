@@ -1,3 +1,5 @@
+//! System Clocks setup and configuration
+
 use crate::pac::rcc;
 use crate::pac::rcc::{
     cfgr::{MCOPRE_A, MCOSEL_A},
@@ -30,6 +32,7 @@ impl RccExt for RCC {
 
 /// Constrained RCC peripheral
 pub struct Rcc {
+    /// The frozen clock frequencies
     pub clocks: Clocks,
     pub(crate) regs: RCC,
 }
@@ -151,13 +154,21 @@ impl From<MCODiv> for MCOPRE_A {
 /// HSI divider
 #[derive(Clone, Copy)]
 pub enum HSIDiv {
+    /// Full HSI frequency
     NotDivided = 1,
+    /// Divide HSI by 2
     Div2 = 2,
+    /// Divide HSI by 4
     Div4 = 4,
+    /// Divide HSI by 8
     Div8 = 8,
+    /// Divide HSI by 16
     Div16 = 16,
+    /// Divide HSI by 32
     Div32 = 32,
+    /// Divide HSI by 64
     Div64 = 64,
+    /// Divide HSI by 128
     Div128 = 128,
 }
 
@@ -179,10 +190,15 @@ impl From<HSIDiv> for HSIDIV_A {
 /// HSI Frequency select
 #[derive(Clone, Copy)]
 pub enum HSIFreq {
+    /// HSI frequency < 4 MHz
     Freq4mhz = 0,
+    /// HSI frequency < 8 Mhz and > 4 MHz
     Freq8mhz = 1,
+    /// HSI frequency < 16 Mhz and > 8 MHz
     Freq16mhz = 2,
+    /// HSI frequency < 22 Mhz and > 12 MHz
     Freq22_12mhz = 3, // 22.12 MHz
+    /// HSI frequency = 24 Mhz
     Freq24mhz = 4,
 }
 
@@ -198,6 +214,7 @@ impl From<HSIFreq> for HSI_FS_A {
     }
 }
 
+/// HSE Bypass mode
 #[derive(Clone, Copy)]
 pub enum HSEBypassMode {
     /// Not bypassed: for crystals
@@ -289,6 +306,8 @@ mod inner {
     pub(super) fn enable_clock(rcc: &mut RCC, c_src: &SysClkSource) {
         // Enable the requested clock
         match c_src {
+            // HSE is not used on some families
+            #[allow(unused_variables)]
             SysClkSource::HSE(freq, bypassed) => {
                 #[cfg(any(feature = "py32f030", feature = "py32f003", feature = "py32f002a"))]
                 hse_enable(rcc, *freq, bypassed);
@@ -395,13 +414,16 @@ pub trait RccBus: crate::Sealed {
     type Bus;
 }
 
-/// Enable/disable peripheral
+/// Enable/disable peripheral clock
 pub trait Enable: RccBus {
+    /// Enable the peripheral clock
     fn enable(rcc: &rcc::RegisterBlock);
+    /// Disable the peripheral clock
     fn disable(rcc: &rcc::RegisterBlock);
 }
 /// Reset peripheral
 pub trait Reset: RccBus {
+    /// Reset the peripheral
     fn reset(rcc: &rcc::RegisterBlock);
 }
 
@@ -445,6 +467,7 @@ impl Clocks {
 
 use self::inner::SysClkSource;
 
+/// Configuration for system Clocks
 pub struct CFGR {
     hclk: Option<u32>,
     pclk: Option<u32>,
@@ -454,6 +477,7 @@ pub struct CFGR {
 }
 
 impl CFGR {
+    /// use the HSE as system clock
     #[cfg(any(feature = "py32f030", feature = "py32f003", feature = "py32f002a"))]
     pub fn hse<F>(mut self, freq: F, bypass: HSEBypassMode) -> Self
     where
@@ -462,6 +486,7 @@ impl CFGR {
         self.clock_src = SysClkSource::HSE(freq.into().raw(), bypass);
         self
     }
+    /// use the HSE as system clock
     #[cfg(feature = "py32f002b")]
     pub fn hse_bypass<F>(mut self, freq: F) -> Self
     where
@@ -471,11 +496,13 @@ impl CFGR {
         self
     }
 
+    /// use the HSI as system clock
     pub fn hsi(mut self, fs: HSIFreq) -> Self {
         self.clock_src = SysClkSource::HSISYS(fs);
         self
     }
 
+    /// set frequency of HCLK
     pub fn hclk<F>(mut self, freq: F) -> Self
     where
         F: Into<Hertz>,
@@ -484,6 +511,7 @@ impl CFGR {
         self
     }
 
+    /// set frequency of PCLK
     pub fn pclk<F>(mut self, freq: F) -> Self
     where
         F: Into<Hertz>,
@@ -492,6 +520,7 @@ impl CFGR {
         self
     }
 
+    /// set frequency of SYSCLK
     pub fn sysclk<F>(mut self, freq: F) -> Self
     where
         F: Into<Hertz>,
@@ -500,6 +529,8 @@ impl CFGR {
         self
     }
 
+    /// Freeze configuration of clocks and set the hardware to that configuration
+    /// Returns the [Rcc]
     pub fn freeze(mut self, flash: &mut crate::pac::FLASH) -> Rcc {
         // Default to lowest frequency clock on all systems.
         let sysclk = self.sysclk.unwrap_or(self::inner::HSI_DEFAULT);

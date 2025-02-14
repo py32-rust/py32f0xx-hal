@@ -1,13 +1,7 @@
 py32f0xx-hal
-=============
+================
 
 > [HAL] for the py32f0xx family of microcontrollers
-
-> **NOTE: The function's are not fully tested, and you are responsible for any problems with the use of this repository.**
-
-Known issues:
-    - I2C master/slave not tested
-    - rtc not tested
 
 [![Crates.io](https://img.shields.io/crates/d/py32f0xx-hal.svg)](https://crates.io/crates/py32f0xx-hal)
 [![Crates.io](https://img.shields.io/crates/v/py32f0xx-hal.svg)](https://crates.io/crates/py32f0xx-hal)
@@ -27,7 +21,7 @@ Supported
 * __py32f002a__ (py32f002ax5)
 * __py32f002b__ (py32f002bx5)
 
-| Device     |    F002A   |   F002A         | F030/F003      |
+| Family     |    F002A   |   F002A         | F030/F003      |
 | ---------- | ---------- | --------------- |--------------- |
 | RCC        | ✅         | ✅              | ✅              |
 | GPIO       | ✅         | ✅              | ✅              |
@@ -42,7 +36,7 @@ Supported
 | FLASH      |            |                |                |
 | COMP       |            |                |                |
 | Timer(PWM) | ✅        | ✅              | ✅              |
-| Watchdog   | ✅        | ✅              | ✅             |
+| Watchdog   | ❓        | ❓              | ❓             |
 | LED        | N/A        | N/A             |               |
 
 
@@ -62,7 +56,7 @@ Getting Started
 ---------------
 The `examples` folder contains several example programs. To compile them, one must specify the target device as cargo feature:
 ```
-$ cargo build --features=py32f002ax5 --example=blinky
+$ cargo build --features=py32f030 --example=blinky
 ```
 
 To use py32f0xx-hal as a dependency in a standalone project the target device feature must be specified in the `Cargo.toml` file:
@@ -74,8 +68,14 @@ cortex-m = "0.7.7"
 cortex-m-rt = "0.7.3"
 # Panic behaviour, see https://crates.io/keywords/panic-impl for alternatives
 panic-halt = "0.2.0"
-py32f0xx-hal = { version = "0.2.2", features = ["py32f002ax5"]}
+py32f0xx-hal = { version = "0.3.0", features = ["py32f030"] }
 ```
+
+## Optional Features
+
+- __rtic__ this feature includes a `monotonic` timer module for use with that crate
+- __defmt__ Adds ```derive(defmt::Format)``` to `Error` types in this crate
+- __rt__ Enables the `rt` feature in the `py32f0` crate
 
 If you are unfamiliar with embedded development using Rust, there are a number of fantastic resources available to help.
 

@@ -1,3 +1,4 @@
+//! API for using DMA with integrated SPI peripheral
 use super::*;
 
 // DMA
@@ -7,17 +8,23 @@ use crate::dma::{
     TransferPayload, Transmit, TxDma, WriteDma,
 };
 
+/// Alias for [Spi] in master mode transmitting with DMA on [Ch]
 pub type SpiTxDma<SPI, SCKPIN, MISOPIN, MOSIPIN, CHANNEL> =
     TxDma<Spi<SPI, SCKPIN, MISOPIN, MOSIPIN, u8>, CHANNEL>;
+/// Alias for [Spi] in master mode receiving with DMA on [Ch]
 pub type SpiRxDma<SPI, SCKPIN, MISOPIN, MOSIPIN, CHANNEL> =
     RxDma<Spi<SPI, SCKPIN, MISOPIN, MOSIPIN, u8>, CHANNEL>;
+/// Alias for [Spi] in master mode transmitting and receiving with DMA on [Ch]
 pub type SpiRxTxDma<SPI, SCKPIN, MISOPIN, MOSIPIN, RXCHANNEL, TXCHANNEL> =
     RxTxDma<Spi<SPI, SCKPIN, MISOPIN, MOSIPIN, u8>, RXCHANNEL, TXCHANNEL>;
 
+/// Alias for [Spi] in slave mode transmitting with DMA on [Ch]
 pub type SpiSlaveTxDma<SPI, SCKPIN, MISOPIN, MOSIPIN, CHANNEL> =
     TxDma<SpiSlave<SPI, SCKPIN, MISOPIN, MOSIPIN, u8>, CHANNEL>;
+/// Alias for [Spi] in slave mode receiving with DMA on [Ch]
 pub type SpiSlaveRxDma<SPI, SCKPIN, MISOPIN, MOSIPIN, CHANNEL> =
     RxDma<SpiSlave<SPI, SCKPIN, MISOPIN, MOSIPIN, u8>, CHANNEL>;
+/// Alias for [Spi] in slave mode transmitting and receiving with DMA on [Ch]
 pub type SpiSlaveRxTxDma<SPI, SCKPIN, MISOPIN, MOSIPIN, RXCHANNEL, TXCHANNEL> =
     RxTxDma<SpiSlave<SPI, SCKPIN, MISOPIN, MOSIPIN, u8>, RXCHANNEL, TXCHANNEL>;
 
@@ -28,6 +35,7 @@ macro_rules! spi_dmarx {
         }),) => {
 
         impl<SCKPIN, MISOPIN, MOSIPIN> Spi<$SPIi, SCKPIN, MISOPIN, MOSIPIN, u8> {
+            /// Use SPI instance in master mode with DMA on [Ch]
             pub fn with_rx_dma<DMA: DmaExt, const C: u8>(self, mut channel: Ch<DMA, C>) ->
                 SpiRxDma<$SPIi, SCKPIN, MISOPIN, MOSIPIN, Ch<DMA, C>> {
                 // turn on syscfg clock and set mux
@@ -41,6 +49,7 @@ macro_rules! spi_dmarx {
             }
         }
         impl<SCKPIN, MISOPIN, MOSIPIN> SpiSlave<$SPIi, SCKPIN, MISOPIN, MOSIPIN, u8> {
+            /// Use SPI instance in slave mode with DMA on [Ch]
             pub fn with_rx_dma<DMA: DmaExt, const C: u8>(self, mut channel: Ch<DMA, C>) ->
                 SpiSlaveRxDma<$SPIi, SCKPIN, MISOPIN, MOSIPIN, Ch<DMA, C>> {
                 // turn on syscfg clock and set mux
@@ -55,6 +64,7 @@ macro_rules! spi_dmarx {
         }
 
         $(
+            /// Alias for SPI receive instance in master mode with DMA
             pub type $rxdma<SCKPIN, MISOPIN, MOSIPIN> = SpiRxDma<$SPIi, SCKPIN, MISOPIN, MOSIPIN, $ch>;
 
             impl<SCKPIN, MISOPIN, MOSIPIN> Receive for SpiRxDma<$SPIi, SCKPIN, MISOPIN, MOSIPIN, $ch> {
@@ -63,6 +73,7 @@ macro_rules! spi_dmarx {
             }
 
             impl<SCKPIN, MISOPIN, MOSIPIN> SpiRxDma<$SPIi, SCKPIN, MISOPIN, MOSIPIN, $ch> {
+                /// Release the SPI instance, pins, and DMA channel
                 pub fn release(mut self) -> (Spi<$SPIi, SCKPIN, MISOPIN, MOSIPIN, u8>, $ch) {
                     self.stop();
                     // reset the mux to default
@@ -118,6 +129,7 @@ macro_rules! spi_dmarx {
                 }
             }
 
+            /// Alias for SPI receive instance in slave mode with DMA
             pub type $slaverxdma<SCKPIN, MISOPIN, MOSIPIN> =
                 SpiSlaveRxDma<$SPIi, SCKPIN, MISOPIN, MOSIPIN, $ch>;
 
@@ -128,6 +140,7 @@ macro_rules! spi_dmarx {
             }
 
             impl<SCKPIN, MISOPIN, MOSIPIN> SpiSlaveRxDma<$SPIi, SCKPIN, MISOPIN, MOSIPIN, $ch> {
+                /// Release SPI instance, pins and DMA channel
                 pub fn release(mut self) -> (SpiSlave<$SPIi, SCKPIN, MISOPIN, MOSIPIN, u8>, $ch) {
                     self.stop();
                     // reset the mux to default
@@ -212,6 +225,7 @@ macro_rules! spi_dmatx {
         }),) => {
 
         impl<SCKPIN, MISOPIN, MOSIPIN> Spi<$SPIi, SCKPIN, MISOPIN, MOSIPIN, u8> {
+            /// Use SPI instance in master mode with DMA on [Ch]
             pub fn with_tx_dma<DMA: DmaExt, const C: u8>(self, mut channel: Ch<DMA, C>) ->
                 SpiTxDma<$SPIi, SCKPIN, MISOPIN, MOSIPIN, Ch<DMA, C>> {
                 // turn on syscfg clock and set mux
@@ -225,6 +239,7 @@ macro_rules! spi_dmatx {
             }
         }
         impl<SCKPIN, MISOPIN, MOSIPIN> SpiSlave<$SPIi, SCKPIN, MISOPIN, MOSIPIN, u8> {
+            /// Use SPI instance in slave mode with DMA on [Ch]
             pub fn with_tx_dma<DMA: DmaExt, const C: u8>(self, mut channel: Ch<DMA, C>) ->
                 SpiSlaveTxDma<$SPIi, SCKPIN, MISOPIN, MOSIPIN, Ch<DMA, C>> {
                 // turn on syscfg clock and set mux
@@ -239,6 +254,7 @@ macro_rules! spi_dmatx {
         }
 
         $(
+            /// Alias for SPI transmit instance in master mode with DMA
             pub type $txdma<SCKPIN, MISOPIN, MOSIPIN> = SpiTxDma<$SPIi, SCKPIN, MISOPIN, MOSIPIN, $ch>;
 
             impl<SCKPIN, MISOPIN, MOSIPIN> Transmit for SpiTxDma<$SPIi, SCKPIN, MISOPIN, MOSIPIN, $ch> {
@@ -247,6 +263,7 @@ macro_rules! spi_dmatx {
             }
 
             impl<SCKPIN, MISOPIN, MOSIPIN> SpiTxDma<$SPIi, SCKPIN, MISOPIN, MOSIPIN, $ch> {
+                /// Release the SPI instance, pins, and DMA channel
                 pub fn release(mut self) -> (Spi<$SPIi, SCKPIN, MISOPIN, MOSIPIN, u8>, $ch) {
                     self.stop();
                     // reset the mux to default
@@ -302,6 +319,7 @@ macro_rules! spi_dmatx {
                 }
             }
 
+            /// Alias for SPI instance in slave mode with DMA
             pub type $slavetxdma<SCKPIN, MISOPIN, MOSIPIN> =
                 SpiSlaveTxDma<$SPIi, SCKPIN, MISOPIN, MOSIPIN, $ch>;
 
@@ -312,6 +330,7 @@ macro_rules! spi_dmatx {
             }
 
             impl<SCKPIN, MISOPIN, MOSIPIN> SpiSlaveTxDma<$SPIi, SCKPIN, MISOPIN, MOSIPIN, $ch> {
+                /// Release the SPI instance, pins and DMA channel
                 pub fn release(mut self) -> (SpiSlave<$SPIi, SCKPIN, MISOPIN, MOSIPIN, u8>, $ch) {
                     self.stop();
                     // reset the mux to default
@@ -395,6 +414,7 @@ macro_rules! spi_dmarxtx {
             $($rxtxdma:ident, $slaverxtxdma:ident, ($rxch:ty, $txch:ty),)+
         }),) => {
         impl<SCKPIN, MISOPIN, MOSIPIN> Spi<$SPIi, SCKPIN, MISOPIN, MOSIPIN, u8> {
+            /// Use SPI instance in master mode with DMA on [Ch]
             pub fn with_rx_tx_dma<DMA: DmaExt, const CRX: u8, const CTX: u8>(
                 self,
                 mut rxchannel: Ch<DMA, CRX>,
@@ -416,6 +436,7 @@ macro_rules! spi_dmarxtx {
             }
         }
         impl<SCKPIN, MISOPIN, MOSIPIN> SpiSlave<$SPIi, SCKPIN, MISOPIN, MOSIPIN, u8> {
+            /// Use SPI instance in slave mode with DMA on [Ch]
             pub fn with_rx_tx_dma<DMA: DmaExt, const CRX: u8, const CTX: u8>(
                 self,
                 mut rxchannel: Ch<DMA, CRX>,
@@ -438,6 +459,7 @@ macro_rules! spi_dmarxtx {
         }
 
         $(
+            /// Alias for SPI tx/rx instance in master mode with DMA
             pub type $rxtxdma<SCKPIN, MISOPIN, MOSIPIN> = SpiRxTxDma<$SPIi, SCKPIN, MISOPIN, MOSIPIN, $rxch, $txch>;
 
             impl<SCKPIN, MISOPIN, MOSIPIN> Transmit for SpiRxTxDma<$SPIi, SCKPIN, MISOPIN, MOSIPIN, $rxch, $txch> {
@@ -451,6 +473,7 @@ macro_rules! spi_dmarxtx {
             }
 
             impl<SCKPIN, MISOPIN, MOSIPIN> SpiRxTxDma<$SPIi, SCKPIN, MISOPIN, MOSIPIN, $rxch, $txch> {
+                /// Release the SPI instance, pins, and DMA channels
                 pub fn release(mut self) -> (Spi<$SPIi, SCKPIN, MISOPIN, MOSIPIN, u8>, $rxch, $txch) {
                     self.stop();
                     // reset the mux to default
@@ -537,6 +560,7 @@ macro_rules! spi_dmarxtx {
                 }
             }
 
+            /// Alias for SPI rx/tx instance in slave mode with DMA
             pub type $slaverxtxdma<SCKPIN, MISOPIN, MOSIPIN> =
                 SpiSlaveRxTxDma<$SPIi, SCKPIN, MISOPIN, MOSIPIN, $rxch, $txch>;
 
@@ -551,6 +575,7 @@ macro_rules! spi_dmarxtx {
             }
 
             impl<SCKPIN, MISOPIN, MOSIPIN> SpiSlaveRxTxDma<$SPIi, SCKPIN, MISOPIN, MOSIPIN, $rxch, $txch> {
+                /// Release the SPI instance, pins, and DMA channels
                 pub fn release(mut self) -> (SpiSlave<$SPIi, SCKPIN, MISOPIN, MOSIPIN, u8>, $rxch, $txch) {
                     self.stop();
                     // reset the mux to default

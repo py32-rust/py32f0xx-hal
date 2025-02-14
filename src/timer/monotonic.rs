@@ -1,11 +1,13 @@
 //! RTIC Monotonic implementation
+//!
+//! To enable this monotonic timer implementation, use the feature `rtic`
 
 use super::{FTimer, Instance};
 use crate::rcc::Clocks;
 use core::ops::{Deref, DerefMut};
-pub use fugit::{self, ExtU32};
 use rtic_monotonic::Monotonic;
 
+/// Monotonic Timer for RTIC
 pub struct MonoTimer<TIM, const FREQ: u32> {
     timer: FTimer<TIM, FREQ>,
     ovf: u32,
@@ -36,8 +38,11 @@ impl<TIM: Instance, const FREQ: u32> MonoTimer<TIM, FREQ> {
     }
 }
 
+/// Extension trait for Timer peripheral
 pub trait MonoTimerExt: Sized {
+    /// Make a [MonoTimer] instance
     fn monotonic<const FREQ: u32>(self, clocks: &Clocks) -> MonoTimer<Self, FREQ>;
+    /// Make a [MonoTimer] instance running at 1 μs
     fn monotonic_us(self, clocks: &Clocks) -> MonoTimer<Self, 1_000_000> {
         self.monotonic::<1_000_000>(clocks)
     }
@@ -52,6 +57,7 @@ macro_rules! mono {
         }
 
         impl<const FREQ: u32> FTimer<$TIM, FREQ> {
+            /// Make a [MonoTimer] instance
             pub fn monotonic(self) -> MonoTimer<$TIM, FREQ> {
                 MonoTimer::<$TIM, FREQ>::_new(self)
             }
@@ -115,7 +121,10 @@ macro_rules! mono {
                     Some(_) => cnt.wrapping_add(0xffff), // Will overflow, run for as long as possible
                 };
 
-                self.tim.ccr1.write(|w| unsafe { w.ccr().bits(val) });
+                #[cfg(any(feature = "py32f030", feature = "py32f003"))]
+                self.tim.ccr[0].write(|w| unsafe { w.ccr1().bits(val) });
+                #[cfg(any(feature = "py32f002a", feature = "py32f002b"))]
+                self.tim.ccr[0].write(|w| unsafe { w.ccr().bits(val) });
             }
 
             fn clear_compare_flag(&mut self) {

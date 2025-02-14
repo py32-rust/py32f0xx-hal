@@ -72,7 +72,9 @@ pub use partially_erased::{PEPin, PartiallyErasedPin};
 mod hal_02;
 mod hal_1;
 
+/// Extension trait to allow identification of a pin and it's current mode
 pub trait PinExt {
+    /// The current mode the pin is using
     type Mode;
 
     /// Return pin number
@@ -80,7 +82,7 @@ pub trait PinExt {
 
     /// Return port id
     ///
-    /// id is ascii byte, 'A' for porta, 'B' for portb
+    /// id is ascii byte, 'A' for Port A, etc
     fn port_id(&self) -> u8;
 }
 
@@ -118,11 +120,11 @@ pub struct Debugger;
 #[derive(Default)]
 pub struct Floating;
 
-/// Pulled down input (type state)
+/// Pulled down pin (type state)
 #[derive(Default)]
 pub struct PullDown;
 
-/// Pulled up input (type state)
+/// Pulled up pin (type state)
 #[derive(Default)]
 pub struct PullUp;
 
@@ -204,13 +206,14 @@ pub struct AF15;
 /// Digital output pin state
 pub use embedded_hal_02::digital::v2::PinState;
 
-// Using SCREAMING_SNAKE_CASE to be consistent with other HALs
-// see 59b2740 and #125 for motivation
-#[allow(non_camel_case_types)]
+/// Specify what type of edge transition will cause an interrupt
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum Edge {
+    /// Rising edge transition
     Rising,
+    /// Falling edge transition
     Falling,
+    /// Either a rising or falling edge transition
     RisingFalling,
 }
 
@@ -218,10 +221,15 @@ mod sealed {
     /// Marker trait that show if `ExtiPin` can be implemented
     pub trait Interruptable {}
 
+    /// Trait for a Pin's current mode
     pub trait PinMode: Default {
+        /// Configuration value of pin as [otyper::OT0_A]
         const CNF: super::Cnf;
+        /// Type of mode
         const MODE: super::Mode;
+        /// Pull up/down configuration
         const PULL: Option<bool> = None;
+        /// Alternate function configuration
         const AF: Option<super::Af> = None;
     }
 }
@@ -234,16 +242,23 @@ pub(crate) use sealed::PinMode;
 impl<MODE> Interruptable for Input<MODE> {}
 impl Interruptable for Dynamic {}
 
-/// External Interrupt Pin
+/// Extension trait for an Interrupt Pin
 pub trait ExtiPin {
+    /// Make a pin an interrupt source
     fn make_interrupt_source(&mut self, exti: &mut pac::EXTI);
+    /// Set the [Edge] trigger on a pin
     fn trigger_on_edge(&mut self, exti: &mut pac::EXTI, level: Edge);
+    /// Enable the interrupt
     fn enable_interrupt(&mut self, exti: &mut pac::EXTI);
+    /// Disable the interrupt
     fn disable_interrupt(&mut self, exti: &mut pac::EXTI);
+    /// Clear pending bit for interrupt
     fn clear_interrupt_pending_bit(&mut self);
+    /// Check for an interrupt, true if one has occurred
     fn check_interrupt(&self) -> bool;
 }
 
+/// External interrupt functions for a [Pin]
 impl<PIN> ExtiPin for PIN
 where
     PIN: PinExt,
@@ -283,13 +298,13 @@ where
                 exti.exticr2
                     .modify(|r, w| unsafe { w.bits(r.bits() | (port << offset)) });
             }
-            // BUGBUG: py32f002a only has 15 port A pins? pin 8, mux selects ports a=0, b=1
+            // pin 8, mux selects ports a=0, b=1
             #[cfg(any(feature = "py32f030", feature = "py32f003", feature = "py32f002a"))]
             8 => {
                 exti.exticr3
                     .modify(|r, w| unsafe { w.bits(r.bits() | (port << offset)) });
             }
-            // BUGBUG: py32f002a only has 15 port A pins? pin 9-15, no mux
+            // pin 9-15, no mux
             #[cfg(any(feature = "py32f030", feature = "py32f003", feature = "py32f002a"))]
             9..=15 => {}
             _ => unreachable!(),
@@ -346,10 +361,15 @@ where
 
 /// Tracks the current pin state for dynamic pins
 pub enum Dynamic {
+    /// Pin is in `Input<Floating>` state
     InputFloating,
+    /// Pin is in `Input<PullUp>` state
     InputPullUp,
+    /// Pin is in `Input<PullDown>` state
     InputPullDown,
+    /// Pin is in `Output<PushPull>` state
     OutputPushPull,
+    /// Pin is in `Output<OpenDrain>` state
     OutputOpenDrain,
 }
 
@@ -361,10 +381,11 @@ impl Default for Dynamic {
 
 impl Active for Dynamic {}
 
-/// `Dynamic` pin error
+/// [Dynamic] pin mode error
 #[derive(Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum PinModeError {
+    /// Trying to use a method for a [Dynamic] pin in the incorrect mode
     IncorrectMode,
 }
 
@@ -415,6 +436,7 @@ macro_rules! gpio {
             }
 
             $(
+                /// type alias for specific [Pin]
                 pub type $PXi<MODE = Input<Floating>> = Pin<$port_id, $pin_number, MODE>;
             )+
 
@@ -446,6 +468,7 @@ macro_rules! gpio {
             }
 
             impl<MODE> PartiallyErasedPin<$port_id, MODE> {
+                /// Erases the port from the type
                 pub fn erase(self) -> ErasedPin<MODE> {
                     ErasedPin::$PXx(self)
                 }
@@ -569,16 +592,19 @@ where
 }
 
 impl<const P: char, const N: u8, MODE> Pin<P, N, Output<MODE>> {
+    /// Set a pin to high level
     #[inline]
     pub fn set_high(&mut self) {
         self._set_high()
     }
 
+    /// Set a pin to low level
     #[inline]
     pub fn set_low(&mut self) {
         self._set_low()
     }
 
+    /// Get the [PinState] for a pin
     #[inline(always)]
     pub fn get_state(&self) -> PinState {
         if self._is_set_low() {
@@ -588,21 +614,25 @@ impl<const P: char, const N: u8, MODE> Pin<P, N, Output<MODE>> {
         }
     }
 
+    /// Set the [PinState] for a pin
     #[inline(always)]
     pub fn set_state(&mut self, state: PinState) {
         self._set_state(state)
     }
 
+    /// returns true if pin is set to high level
     #[inline]
     pub fn is_set_high(&self) -> bool {
         !self._is_set_low()
     }
 
+    /// returns true if pin is set to low level
     #[inline]
     pub fn is_set_low(&self) -> bool {
         self._is_set_low()
     }
 
+    /// Toggle the pin state from high level to low level, or the reverse
     #[inline]
     pub fn toggle(&mut self) {
         if self._is_set_low() {
@@ -614,11 +644,13 @@ impl<const P: char, const N: u8, MODE> Pin<P, N, Output<MODE>> {
 }
 
 impl<const P: char, const N: u8, MODE> Pin<P, N, Input<MODE>> {
+    /// returns true if pin is at high level
     #[inline]
     pub fn is_high(&self) -> bool {
         !self._is_low()
     }
 
+    /// returns true if pin is at low level
     #[inline]
     pub fn is_low(&self) -> bool {
         self._is_low()
@@ -626,11 +658,12 @@ impl<const P: char, const N: u8, MODE> Pin<P, N, Input<MODE>> {
 }
 
 impl<const P: char, const N: u8> Pin<P, N, Output<OpenDrain>> {
+    /// returns true if pin is at high level
     #[inline]
     pub fn is_high(&self) -> bool {
         !self._is_low()
     }
-
+    /// returns true if pin is at low level
     #[inline]
     pub fn is_low(&self) -> bool {
         self._is_low()
@@ -865,6 +898,7 @@ macro_rules! impl_temp_input {
     };
 }
 
+/// Functions to make a pin into another mode temporarily
 impl<const P: char, const N: u8, MODE> Pin<P, N, MODE>
 where
     MODE: Active + PinMode,
@@ -884,9 +918,9 @@ where
     impl_temp_input!(as_pull_down_input, Input<PullDown>);
 }
 
-// Dynamic pin
-
+/// [Dynamic] pin functions
 impl<const P: char, const N: u8> Pin<P, N, Dynamic> {
+    /// Change pin mode to a `Input<PullUp>`
     #[inline]
     pub fn make_pull_up_input(&mut self) {
         // NOTE(unsafe), we have a mutable reference to the current pin
@@ -894,6 +928,7 @@ impl<const P: char, const N: u8> Pin<P, N, Dynamic> {
         self.mode = Dynamic::InputPullUp;
     }
 
+    /// Change pin mode to a `Input<PullDown>`
     #[inline]
     pub fn make_pull_down_input(&mut self) {
         // NOTE(unsafe), we have a mutable reference to the current pin
@@ -901,6 +936,7 @@ impl<const P: char, const N: u8> Pin<P, N, Dynamic> {
         self.mode = Dynamic::InputPullDown;
     }
 
+    /// Change pin mode to a `Input<Floating>`
     #[inline]
     pub fn make_floating_input(&mut self) {
         // NOTE(unsafe), we have a mutable reference to the current pin
@@ -908,6 +944,7 @@ impl<const P: char, const N: u8> Pin<P, N, Dynamic> {
         self.mode = Dynamic::InputFloating;
     }
 
+    /// Change pin mode to a `Output<PushPull>`
     #[inline]
     pub fn make_push_pull_output(&mut self) {
         // NOTE(unsafe), we have a mutable reference to the current pin
@@ -915,6 +952,7 @@ impl<const P: char, const N: u8> Pin<P, N, Dynamic> {
         self.mode = Dynamic::OutputPushPull;
     }
 
+    /// Change mode of pin to a `Output<OpenDrain>`
     #[inline]
     pub fn make_open_drain_output(&mut self) {
         // NOTE(unsafe), we have a mutable reference to the current pin
@@ -1111,49 +1149,6 @@ impl<const P: char, const N: u8, M> Pin<P, N, M> {
     pub(crate) fn into_mode<MODE: PinMode>(mut self) -> Pin<P, N, MODE> {
         self.mode::<MODE>();
         Pin::new()
-    }
-}
-
-impl Analog {
-    pub fn new<const P: char, const N: u8, MODE>(pin: Pin<P, N, MODE>) -> Pin<P, N, Self>
-    where
-        Self: PinMode,
-    {
-        pin.into_mode()
-    }
-}
-
-impl<PULL> Input<PULL> {
-    pub fn new<const P: char, const N: u8, MODE>(
-        pin: Pin<P, N, MODE>,
-        _pull: PULL,
-    ) -> Pin<P, N, Self>
-    where
-        Self: PinMode,
-    {
-        pin.into_mode()
-    }
-}
-
-impl<Otype> Output<Otype> {
-    pub fn new<const P: char, const N: u8, MODE>(
-        mut pin: Pin<P, N, MODE>,
-        state: PinState,
-    ) -> Pin<P, N, Self>
-    where
-        Self: PinMode,
-    {
-        pin._set_state(state);
-        pin.into_mode()
-    }
-}
-
-impl<AF> Alternate<AF> {
-    pub fn new<const P: char, const N: u8, MODE>(pin: Pin<P, N, MODE>) -> Pin<P, N, Self>
-    where
-        Self: PinMode,
-    {
-        pin.into_mode()
     }
 }
 
