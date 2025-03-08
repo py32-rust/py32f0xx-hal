@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.3.1 - 2025-03-08
+
+### Fixed
+
+- Bug in gpio, _is_low(), was returning false if low, true if high, now correct
+
 ## v0.3.0 - 2025-02-14
 
 ### Added
