@@ -576,7 +576,7 @@ impl<const P: char, const N: u8, MODE> Pin<P, N, MODE> {
     fn _is_low(&self) -> bool {
         // NOTE(unsafe) atomic read with no side effects
         let gpio = unsafe { &(*gpiox::<P>()) };
-        gpio.idr.read().bits() & (1 << N) != 0
+        gpio.idr.read().bits() & (1 << N) == 0
     }
 }
 
