@@ -231,6 +231,11 @@ where
     where
         PINS: Pins<Self, P>;
 
+    /// Configure a [Timer] into a [PwmHz] with a list of pins and a frequency can be set in the future
+    fn pwm_hz_mutable_frequency<P, PINS>(self, pins: PINS, clocks: &Clocks) -> PwmHz<Self, P, PINS>
+    where
+        PINS: Pins<Self, P>;
+
     /// Configure a [Timer] into a [Pwm] with a list of pins and a duration in μs
     fn pwm_us<P, PINS>(
         self,
@@ -268,6 +273,14 @@ where
         PINS: Pins<TIM, P>,
     {
         Timer::new(self, clocks).pwm_hz(pins, time)
+    }
+
+    /// Configure a [Timer] into a [PwmHz] with a list of pins and a frequency can be set in the future
+    fn pwm_hz_mutable_frequency<P, PINS>(self, pins: PINS, clocks: &Clocks) -> PwmHz<TIM, P, PINS>
+    where
+        PINS: Pins<TIM, P>,
+    {
+        Timer::new(self, clocks).pwm_hz_mutable_frequency(pins, None)
     }
 }
 
@@ -327,6 +340,7 @@ where
     PINS: Pins<TIM, P>,
 {
     timer: Timer<TIM>,
+    freq: Option<Hertz>,
     _pins: PhantomData<(P, PINS)>,
 }
 
@@ -346,6 +360,54 @@ where
     pub fn split(self) -> PINS::Channels {
         PINS::split()
     }
+
+    pub fn channels(&self) -> PINS::Channels {
+        PINS::split()
+    }
+
+    /// start_pwm
+    pub fn start_pwm(&mut self) {
+        if let Some(freq) = self.freq {
+            let (psc, arr) = compute_arr_presc(freq.raw(), self.timer.clk.raw());
+
+            let tim = &mut self.timer.tim;
+            tim.set_prescaler(psc);
+            tim.set_auto_reload(arr).unwrap();
+
+            // Trigger update event to load the registers
+            tim.trigger_update();
+            tim.start_pwm();
+        }
+    }
+
+    pub fn stop_pwm(&mut self) {
+        if let Some(_freq) = self.freq {
+            let tim = &mut self.timer.tim;
+            tim.stop_pwm();
+        }
+    }
+
+    pub fn set_frequency(&mut self, freq: Hertz) {
+        self.stop_pwm();
+        self.freq = Some(freq);
+        self.start_pwm();
+    }
+
+    // pub fn enable_channel<PIN:OcPin>(&self, _p: PIN) {
+    //     TIM::enable_channel(PIN::CN, true);
+    // }
+
+    // pub fn disable_channel<PIN:OcPin>(&self, _p: PIN) {
+    //     TIM::enable_channel(PIN::CN, false);
+    // }
+
+    // pub fn get_max_duty(&self) -> u16 {
+    //     (TIM::read_auto_reload() as u16).wrapping_add(1)
+    // }
+
+    // pub fn set_duty(&self, _p:PIN, duty: u32 ) {
+    //     TIM::set_cc_value(PIN::CN, duty as u32)
+    // }
 }
 
 impl<TIM, P, PINS> Deref for PwmHz<TIM, P, PINS>
@@ -370,10 +432,11 @@ where
 }
 
 impl<TIM: Instance + WithPwm> Timer<TIM> {
-    /// Configure a PWM timer with a list of pins and a period in [Hertz]
-    pub fn pwm_hz<P, PINS>(mut self, _pins: PINS, freq: Hertz) -> PwmHz<TIM, P, PINS>
+
+    /// Configure a PWM timer with a list of pins and a period in option[Hertz], if it is Some(Hertz) it starts pwm immediately. If it is None it will not start pwm immediately.  You can set freq in PwmHz to start pwm.
+    pub fn pwm_hz_mutable_frequency<P, PINS>(mut self, _pins: PINS, freq: Option<Hertz>) -> PwmHz<TIM, P, PINS>
     where
-        PINS: Pins<TIM, P>,
+        PINS: Pins<TIM, P>, 
     {
         if PINS::C1N | PINS::C2N | PINS::C3N {
             self.tim.set_comp_off_state_run_mode(false);
@@ -411,19 +474,24 @@ impl<TIM: Instance + WithPwm> Timer<TIM> {
         // might as well enable for the auto-reload too
         self.tim.enable_preload(true);
 
-        let (psc, arr) = compute_arr_presc(freq.raw(), self.clk.raw());
-        self.tim.set_prescaler(psc);
-        self.tim.set_auto_reload(arr).unwrap();
-
-        // Trigger update event to load the registers
-        self.tim.trigger_update();
-
-        self.tim.start_pwm();
-
-        PwmHz {
+        let mut pwm_hz = PwmHz {
             timer: self,
+            freq: freq,
             _pins: PhantomData,
+        };
+
+        if let Some(_) = freq {
+            pwm_hz.start_pwm();
         }
+        pwm_hz
+    }
+
+    /// Configure a PWM timer with a list of pins and a period in [Hertz]
+    pub fn pwm_hz<P, PINS>(self, pins: PINS, freq: Hertz) -> PwmHz<TIM, P, PINS>
+    where
+        PINS: Pins<TIM, P>,
+    {
+        self.pwm_hz_mutable_frequency(pins, Some(freq))
     }
 }
 

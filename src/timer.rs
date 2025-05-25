@@ -360,6 +360,7 @@ mod sealed {
             polarity: OcmPolarity,
         );
         fn start_pwm(&mut self);
+        fn stop_pwm(&mut self);
         fn enable_channel(channel: u8, b: bool);
         fn enable_comp(channel: u8, b: bool);
     }
@@ -572,6 +573,12 @@ macro_rules! with_pwm {
             }
 
             #[inline(always)]
+            fn stop_pwm(&mut self) {
+                self.cr1.modify(|_, w| w.cen().clear_bit());
+                $(let $aoe = self.bdtr.modify(|_, w| w.aoe().clear_bit());)?
+            }
+
+            #[inline(always)]
             fn enable_channel(c: u8, b: bool) {
                 let tim = unsafe { &*<$TIM>::ptr() };
                 match c {
@@ -671,6 +678,12 @@ macro_rules! with_pwm {
             fn start_pwm(&mut self) {
                 $(let $aoe = self.bdtr.modify(|_, w| w.aoe().set_bit());)?
                 self.cr1.modify(|_, w| w.cen().set_bit());
+            }
+
+            #[inline(always)]
+            fn stop_pwm(&mut self) {
+                self.cr1.modify(|_, w| w.cen().clear_bit());
+                $(let $aoe = self.bdtr.modify(|_, w| w.aoe().clear_bit());)?
             }
 
             #[inline(always)]
