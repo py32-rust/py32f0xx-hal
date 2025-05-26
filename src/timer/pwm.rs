@@ -321,6 +321,8 @@ impl<TIM: Instance + WithPwm, OP: OcPin> PwmChannel<TIM, OP> {
     }
 
     /// If `0` returned means max_duty is 2^16
+    /// 
+    /// WARN: you would better call set_frequency() on related PwmHz before calling this function or you may get an unintended 0
     #[inline]
     pub fn get_max_duty(&self) -> u16 {
         (TIM::read_auto_reload() as u16).wrapping_add(1)
@@ -543,6 +545,8 @@ where
     /// Get the maximum possible duty for this timer
     ///
     /// If `0` returned means max_duty is 2^16
+    /// 
+    /// WARN: you would better call set_frequency() before calling this function or you may get an unintended 0
     pub fn get_max_duty(&self) -> u16 {
         (TIM::read_auto_reload() as u16).wrapping_add(1)
     }
