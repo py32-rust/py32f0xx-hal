@@ -280,7 +280,7 @@ where
     where
         PINS: Pins<TIM, P>,
     {
-        Timer::new(self, clocks).pwm_hz_mutable_frequency(pins, None)
+        Timer::new(self, clocks).pwm_hz_option_frequency(pins, None)
     }
 }
 
@@ -434,7 +434,7 @@ where
 impl<TIM: Instance + WithPwm> Timer<TIM> {
 
     /// Configure a PWM timer with a list of pins and a period in option[Hertz], if it is Some(Hertz) it starts pwm immediately. If it is None it will not start pwm immediately.  You can set freq in PwmHz to start pwm.
-    pub fn pwm_hz_mutable_frequency<P, PINS>(mut self, _pins: PINS, freq: Option<Hertz>) -> PwmHz<TIM, P, PINS>
+    pub fn pwm_hz_option_frequency<P, PINS>(mut self, _pins: PINS, freq: Option<Hertz>) -> PwmHz<TIM, P, PINS>
     where
         PINS: Pins<TIM, P>, 
     {
@@ -491,7 +491,7 @@ impl<TIM: Instance + WithPwm> Timer<TIM> {
     where
         PINS: Pins<TIM, P>,
     {
-        self.pwm_hz_mutable_frequency(pins, Some(freq))
+        self.pwm_hz_option_frequency(pins, Some(freq))
     }
 }
 
