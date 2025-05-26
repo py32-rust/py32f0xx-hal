@@ -51,7 +51,7 @@
 #![no_std]
 #![allow(non_camel_case_types)]
 #![allow(clippy::uninit_assumed_init)]
-// #![deny(missing_docs)]
+#![deny(missing_docs)]
 
 #[cfg(feature = "py32f002a")]
 pub use py32f0::py32f002a as pac;
