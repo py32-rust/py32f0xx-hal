@@ -321,7 +321,7 @@ impl<TIM: Instance + WithPwm, OP: OcPin> PwmChannel<TIM, OP> {
     }
 
     /// If `0` returned means max_duty is 2^16
-    /// 
+    ///
     /// WARN: you would better call set_frequency() on related PwmHz before calling this function or you may get an unintended 0
     #[inline]
     pub fn get_max_duty(&self) -> u16 {
@@ -421,11 +421,14 @@ where
 }
 
 impl<TIM: Instance + WithPwm> Timer<TIM> {
-
     /// Configure a PWM timer with a list of pins and a period in option[Hertz], if it is Some(Hertz) it starts pwm immediately. If it is None it will not start pwm immediately.  You can set freq in PwmHz to start pwm.
-    pub fn pwm_hz_mutable_frequency<P, PINS>(mut self, _pins: PINS, freq: Option<Hertz>) -> PwmHz<TIM, P, PINS>
+    pub fn pwm_hz_mutable_frequency<P, PINS>(
+        mut self,
+        _pins: PINS,
+        freq: Option<Hertz>,
+    ) -> PwmHz<TIM, P, PINS>
     where
-        PINS: Pins<TIM, P>, 
+        PINS: Pins<TIM, P>,
     {
         if PINS::C1N | PINS::C2N | PINS::C3N {
             self.tim.set_comp_off_state_run_mode(false);
@@ -529,7 +532,7 @@ where
     /// Get the maximum possible duty for this timer
     ///
     /// If `0` returned means max_duty is 2^16
-    /// 
+    ///
     /// WARN: you would better call set_frequency() before calling this function or you may get an unintended 0
     pub fn get_max_duty(&self) -> u16 {
         (TIM::read_auto_reload() as u16).wrapping_add(1)

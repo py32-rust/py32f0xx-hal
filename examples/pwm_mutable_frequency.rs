@@ -6,27 +6,27 @@ use embedded_hal::delay::DelayNs;
 // Halt on panic
 use panic_halt as _;
 
-use cortex_m_rt::entry;
 use cortex_m::peripheral::Peripherals;
+use cortex_m_rt::entry;
 
 use py32f0xx_hal as hal;
 
-use hal::{pac, prelude::*};
-use defmt_rtt as _;
 use defmt::info;
+use defmt_rtt as _;
+use hal::{pac, prelude::*};
 
 #[entry]
 fn main() -> ! {
     info!("pwm mutable frequency example");
     let mut dp = pac::Peripherals::take().unwrap();
-    
+
     let cp = Peripherals::take().unwrap();
 
     // Set up the system clock.
     let rcc = dp.RCC.configure().sysclk(24.MHz()).freeze(&mut dp.FLASH);
 
     let gpioa = dp.GPIOA.split();
-    
+
     let channel = gpioa.pa0.into_alternate_af13();
 
     let mut pwm = dp.TIM1.pwm_hz_mutable_frequency(channel, &rcc.clocks);
