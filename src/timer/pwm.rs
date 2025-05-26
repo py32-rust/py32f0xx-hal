@@ -397,22 +397,6 @@ where
         self.freq = Some(freq);
         self.start_pwm();
     }
-
-    // pub fn enable_channel<PIN:OcPin>(&self, _p: PIN) {
-    //     TIM::enable_channel(PIN::CN, true);
-    // }
-
-    // pub fn disable_channel<PIN:OcPin>(&self, _p: PIN) {
-    //     TIM::enable_channel(PIN::CN, false);
-    // }
-
-    // pub fn get_max_duty(&self) -> u16 {
-    //     (TIM::read_auto_reload() as u16).wrapping_add(1)
-    // }
-
-    // pub fn set_duty(&self, _p:PIN, duty: u32 ) {
-    //     TIM::set_cc_value(PIN::CN, duty as u32)
-    // }
 }
 
 impl<TIM, P, PINS> Deref for PwmHz<TIM, P, PINS>
