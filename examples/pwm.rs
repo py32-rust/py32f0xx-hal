@@ -23,8 +23,8 @@ fn main() -> ! {
         gpioa.pa9.into_alternate_af2(), // on TIM1_CH2
     );
 
-    let pwm = dp.TIM1.pwm_hz(channels, 20.kHz(), &rcc.clocks);
-    let (mut ch1, mut ch2) = pwm.split();
+    let mut pwm = dp.TIM1.pwm_hz(channels, 20.kHz(), &rcc.clocks);
+    let (ref mut ch1, ref mut ch2) = pwm.channels();
     let max_duty = ch1.get_max_duty();
     ch1.set_duty(max_duty / 4);
     ch1.enable();

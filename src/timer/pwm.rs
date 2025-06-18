@@ -327,7 +327,9 @@ where
     PINS: Pins<TIM, P>,
 {
     timer: Timer<TIM>,
-    _pins: PhantomData<(P, PINS)>,
+    pins: PINS,
+    channels: PINS::Channels,
+    _p: PhantomData<P>,
 }
 
 impl<TIM, P, PINS> PwmHz<TIM, P, PINS>
@@ -336,15 +338,15 @@ where
     PINS: Pins<TIM, P>,
 {
     /// Release the Timer instance and pins
-    pub fn release(mut self) -> Timer<TIM> {
+    pub fn release(mut self) -> (TIM, PINS) {
         // stop timer
-        self.tim.cr1_reset();
-        self.timer
+        self.timer.tim.cr1_reset();
+        (self.timer.tim, self.pins)
     }
 
-    /// Split the DMA channels from [PwmHz]
-    pub fn split(self) -> PINS::Channels {
-        PINS::split()
+    /// Get reference to DMA channels from [PwmHz]
+    pub fn channels(&mut self) -> &mut PINS::Channels {
+        &mut self.channels
     }
 }
 
@@ -371,7 +373,7 @@ where
 
 impl<TIM: Instance + WithPwm> Timer<TIM> {
     /// Configure a PWM timer with a list of pins and a period in [Hertz]
-    pub fn pwm_hz<P, PINS>(mut self, _pins: PINS, freq: Hertz) -> PwmHz<TIM, P, PINS>
+    pub fn pwm_hz<P, PINS>(mut self, pins: PINS, freq: Hertz) -> PwmHz<TIM, P, PINS>
     where
         PINS: Pins<TIM, P>,
     {
@@ -422,7 +424,9 @@ impl<TIM: Instance + WithPwm> Timer<TIM> {
 
         PwmHz {
             timer: self,
-            _pins: PhantomData,
+            pins: pins,
+            channels: PINS::split(),
+            _p: PhantomData,
         }
     }
 }
