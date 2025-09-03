@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.4.0 - 2025-03-08
+
+### Changed
+
+- PWM altered to have split() return references to the output pins. Now, release() will also return original HAL components
+so that the timer can be reused.
+
 ## v0.3.1 - 2025-03-08
 
 ### Fixed

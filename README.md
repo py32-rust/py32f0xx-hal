@@ -68,7 +68,7 @@ cortex-m = "0.7.7"
 cortex-m-rt = "0.7.3"
 # Panic behaviour, see https://crates.io/keywords/panic-impl for alternatives
 panic-halt = "0.2.0"
-py32f0xx-hal = { version = "0.3.1", features = ["py32f030"] }
+py32f0xx-hal = { version = "0.4.0", features = ["py32f030"] }
 ```
 
 ## Optional Features
