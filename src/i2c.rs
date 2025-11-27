@@ -280,11 +280,11 @@ where
             if self.i2c.cr1.read().stop().bit_is_clear() {
                 break;
             }
-        } 
+        }
 
         // Clear all pending error bits
         self.i2c.sr1.write(|w| unsafe { w.bits(0) });
-        
+
         // Set up current address, we're trying to talk to
         let wr_addr = if is_write {
             u32::from(addr) << 1
@@ -298,11 +298,13 @@ where
         } else {
             // Send a START condition
             // Set ACK bit for read operations
-            self.i2c.cr1.modify(|_, w| w.start().set_bit().ack().set_bit());
+            self.i2c
+                .cr1
+                .modify(|_, w| w.start().set_bit().ack().set_bit());
         }
 
         // Wait until START condition was generated
-        while self.check_and_clear_error_flags()?.sb().bit_is_clear() { }
+        while self.check_and_clear_error_flags()?.sb().bit_is_clear() {}
 
         // Also wait until signalled we're master and everything is waiting for us
         loop {
@@ -314,14 +316,12 @@ where
             }
         }
 
-        // Send out address         
-        self.i2c
-            .dr
-            .write(|w| unsafe { w.bits(wr_addr) });
+        // Send out address
+        self.i2c.dr.write(|w| unsafe { w.bits(wr_addr) });
 
         // Wait until address was sent
-        while self.check_and_clear_error_flags()?.addr().bit_is_clear() { }
-        
+        while self.check_and_clear_error_flags()?.addr().bit_is_clear() {}
+
         // Clear condition by reading SR2
         self.i2c.sr2.read();
 
@@ -331,25 +331,24 @@ where
     fn send_byte(&self, byte: u8) -> Result<(), Error> {
         // Wait until we're ready for sending
         // Check for any I2C errors. If a NACK occurs, the ADDR bit will never be set.
-        while self.check_and_clear_error_flags()?.txe().bit_is_clear() { }
-        
+        while self.check_and_clear_error_flags()?.txe().bit_is_clear() {}
+
         // Push out a byte of data
         self.i2c.dr.write(|w| unsafe { w.bits(u32::from(byte)) });
 
         // Wait until byte is transferred
         // Check for any potential error conditions.
-        while self.check_and_clear_error_flags()?.btf().bit_is_clear() { }
+        while self.check_and_clear_error_flags()?.btf().bit_is_clear() {}
 
         Ok(())
     }
 
     fn recv_byte(&self) -> Result<u8, Error> {
-        while self.check_and_clear_error_flags()?.rxne().bit_is_clear() { }        
+        while self.check_and_clear_error_flags()?.rxne().bit_is_clear() {}
         let value = self.i2c.dr.read().bits() as u8;
         Ok(value)
     }
 
-    
     fn read_bytes(&mut self, buffer: &mut [u8]) -> Result<(), Error> {
         // Receive bytes into buffer
         for c in buffer {
@@ -372,7 +371,6 @@ where
             // Receive last byte
             *last = self.recv_byte()?;
 
-            
             // Wait for the STOP to be sent. Otherwise, the interface will still be
             // busy for a while after this function returns. Immediate following
             // operations through the DMA handle might thus encounter `WouldBlock`
@@ -384,7 +382,6 @@ where
                     break;
                 }
             }
-            
 
             // Fallthrough is success
             Ok(())
@@ -421,15 +418,12 @@ where
     }
 }
 
-
-
 impl<I2C, SCLPIN, SDAPIN> WriteRead for I2c<I2C, SCLPIN, SDAPIN>
 where
     I2C: Instance,
 {
     type Error = Error;
 
-    
     fn write_read(&mut self, addr: u8, bytes: &[u8], buffer: &mut [u8]) -> Result<(), Error> {
         // Prepare for write
         self.prepare(addr, true)?;
@@ -441,9 +435,9 @@ where
 
         // Prepare for read
         self.prepare(addr, false)?;
-        
+
         self.read_wo_prepare(buffer)?;
-        
+
         Ok(())
     }
 }
@@ -477,7 +471,7 @@ where
     fn write(&mut self, addr: u8, bytes: &[u8]) -> Result<(), Error> {
         // Prepare for write
         self.prepare(addr, true)?;
-        
+
         // Now write all bytes
         self.write_wo_prepare(bytes)?;
 
