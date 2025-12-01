@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.4.1 - 2025-12-01
+
+### Fixed
+
+- I2C now works in write and write_read for F030 device
+
 ## v0.4.0 - 2025-03-08
 
 ### Changed

@@ -29,7 +29,7 @@ Supported
 | DMA        | N/A        | N/A             | ✅             |
 | EXTI       | ✅         | ✅             | ✅             |
 | USART      | ✅         | ✅             | ✅             |
-| I2C        | ❓         | ❓             | ❓             |
+| I2C        | ❓         | ❓             | ❓1             |
 | SPI        | ✅         | ✅             | ✅               |
 | ADC        | ✅         | ✅             | ✅             |
 | RTC        | ✅         | ✅             | ✅               |
@@ -45,6 +45,8 @@ Supported
 - ❓ : Requires demo verification
 - `+` : Async support
 - N/A : Not available
+
+1. I2C is tested for write and write_read on F030
 
 ## TODOs
 
@@ -68,7 +70,7 @@ cortex-m = "0.7.7"
 cortex-m-rt = "0.7.3"
 # Panic behaviour, see https://crates.io/keywords/panic-impl for alternatives
 panic-halt = "0.2.0"
-py32f0xx-hal = { version = "0.4.0", features = ["py32f030"] }
+py32f0xx-hal = { version = "0.4.1", features = ["py32f030"] }
 ```
 
 ## Optional Features
