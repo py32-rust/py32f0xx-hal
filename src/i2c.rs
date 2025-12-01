@@ -269,9 +269,7 @@ where
 
     #[inline(always)]
     fn prepare(&mut self, addr: u8, is_write: bool) -> Result<(), Error> {
-        // Wait until a previous STOP condition finishes. When the previous
-        // STOP was generated inside an ISR (e.g. DMA interrupt handler),
-        // the ISR returns without waiting for the STOP condition to finish.
+        // Wait until a previous STOP condition finishes.
         // It is possible that the STOP condition is still being generated
         // when we reach here, so we wait until it finishes before proceeding
         // to start a new transaction.
@@ -372,10 +370,7 @@ where
             *last = self.recv_byte()?;
 
             // Wait for the STOP to be sent. Otherwise, the interface will still be
-            // busy for a while after this function returns. Immediate following
-            // operations through the DMA handle might thus encounter `WouldBlock`
-            // error. Instead, we should make sure that the interface becomes idle
-            // before returning.
+            // busy for a while after this function returns.
             loop {
                 self.check_and_clear_error_flags()?;
                 if self.i2c.cr1.read().stop().bit_is_clear() {
@@ -407,10 +402,7 @@ where
         self.i2c.cr1.modify(|_, w| w.stop().set_bit());
 
         // Wait for the STOP to be sent. Otherwise, the interface will still be
-        // busy for a while after this function returns. Immediate following
-        // operations through the DMA handle might thus encounter `WouldBlock`
-        // error. Instead, we should make sure that the interface becomes idle
-        // before returning.
+        // busy for a while after this function returns.
         while self.i2c.cr1.read().stop().bit_is_set() {}
 
         // Fallthrough is success
