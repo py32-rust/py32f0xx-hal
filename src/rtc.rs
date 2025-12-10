@@ -1,7 +1,7 @@
 /*!
   Real time clock
 */
-use crate::pac::{RCC, RTC, PWR};
+use crate::pac::{PWR, RCC, RTC};
 
 use crate::time::{Hertz, Hz};
 
@@ -224,7 +224,6 @@ impl Rtc<RtcClkLsi> {
         let prescaler = LSI_HERTZ.raw() / frequency.raw() - 1;
         self.set_prescaler(prescaler);
     }
-
 }
 
 impl Rtc<RtcClkHseDiv128> {
@@ -310,7 +309,7 @@ impl Rtc<RtcClkHseDiv128> {
 }
 
 impl<CS> Rtc<CS> {
-    fn enable_apb_and_dbp () {
+    fn enable_apb_and_dbp() {
         let rcc = unsafe { &*RCC::ptr() };
         rcc.apbenr1.modify(|_, w| w.pwren().set_bit());
         rcc.apbenr1.modify(|_, w| w.rtcapben().set_bit());
@@ -434,7 +433,7 @@ impl<CS> Rtc<CS> {
 
         // Take the device out of config mode
         self.regs.crl.modify(|_, w| w.cnf().clear_bit());
-        
+
         // Wait for the write to be done
         while !self.regs.crl.read().rtoff().bit() {}
     }
