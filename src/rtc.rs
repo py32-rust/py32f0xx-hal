@@ -1,13 +1,14 @@
 /*!
   Real time clock
 */
-use crate::pac::{RCC, RTC};
 
+use crate::pac::{PWR, RCC, RTC};
+use crate::rcc::Rcc;
+use crate::rcc::Enable;
 use crate::time::{Hertz, Hz};
 
 use core::convert::Infallible;
 use core::marker::PhantomData;
-
 // The LSE runs at at 32 768 hertz unless an external clock is provided
 #[cfg(feature = "py32f030")]
 const LSE_HERTZ: Hertz = Hz(32_768);
@@ -63,21 +64,17 @@ impl Rtc<RtcClkLse> {
       you may want to use
       [`restore_or_new`](Rtc::<RtcClkLse>::restore_or_new) instead.
     */
-    pub fn new(regs: RTC) -> Self {
+    pub fn new(regs: RTC, rcc: &mut Rcc, pwr:&mut PWR) -> Self {
         let mut result = Rtc {
             regs,
             _clock_source: PhantomData,
         };
 
-        Self::enable_rtc();
+        Self::enable_rtc(&mut rcc.regs, pwr, false);
 
         // Set the prescaler to make it count up once every second.
         let prl = LSE_HERTZ.raw() - 1;
-        assert!(prl < 1 << 20);
-        result.perform_write(|s| {
-            s.regs.prlh.write(|w| unsafe { w.bits(prl >> 16) });
-            s.regs.prll.write(|w| unsafe { w.bits(prl as u16 as u32) });
-        });
+        result.set_prescaler(prl);
 
         result
     }
@@ -96,10 +93,11 @@ impl Rtc<RtcClkLse> {
     ///    }
     /// };
     /// ```
-    pub fn restore_or_new(regs: RTC) -> RestoredOrNewRtc<RtcClkLse> {
-        if !Self::is_enabled() {
-            RestoredOrNewRtc::New(Rtc::new(regs))
+    pub fn restore_or_new(regs: RTC, rcc: &mut Rcc, pwr:&mut PWR) -> RestoredOrNewRtc<RtcClkLse> {
+        if !Self::is_enabled(&mut rcc.regs) {
+            RestoredOrNewRtc::New(Rtc::new(regs, rcc, pwr))
         } else {
+            Self::enable_rtc(&mut rcc.regs, pwr,  true);
             RestoredOrNewRtc::Restored(Rtc {
                 regs,
                 _clock_source: PhantomData,
@@ -108,17 +106,19 @@ impl Rtc<RtcClkLse> {
     }
 
     /// Returns whether the RTC is currently enabled and LSE is selected.
-    fn is_enabled() -> bool {
-        let rcc = unsafe { &*RCC::ptr() };
+    fn is_enabled(rcc: &mut RCC) -> bool {
         let bdcr = rcc.bdcr.read();
         bdcr.rtcen().is_enabled() && bdcr.rtcsel().is_lse()
     }
 
     /// Enables the RTC device with the lse as the clock
-    fn enable_rtc() {
+    fn enable_rtc(rcc:&mut RCC, pwr:&mut PWR, is_restore: bool) {
         // NOTE: Safe RCC access because we are only accessing bdcr
         // and we have a &mut on BackupDomain
-        let rcc = unsafe { &*RCC::ptr() };
+        Self::enable_apb_and_dbp(rcc, pwr);
+        if is_restore {
+            return;
+        }
         rcc.bdcr.modify(|_, w| {
             // start the LSE oscillator
             w.lseon().set_bit();
@@ -126,7 +126,18 @@ impl Rtc<RtcClkLse> {
             w.rtcen().set_bit();
             // Set the source of the RTC to LSE
             w.rtcsel().lse()
-        })
+        });
+    }
+
+    /// Selects the frequency of the RTC Timer
+    /// NOTE: Maximum frequency of 16384 Hz using the external LSE
+    pub fn select_frequency(&mut self, frequency: Hertz) {
+        // The manual says that the zero value for the prescaler is not recommended, thus the
+        // minimum division factor is 2 (prescaler + 1)
+        assert!(frequency <= LSE_HERTZ / 2);
+
+        let prescaler = LSE_HERTZ.raw() / frequency.raw() - 1;
+        self.set_prescaler(prescaler);
     }
 }
 
@@ -141,31 +152,28 @@ impl Rtc<RtcClkLsi> {
       you may want to use
       [`restore_or_new_lsi`](Rtc::<RtcClkLsi>::restore_or_new_lsi) instead.
     */
-    pub fn new_lsi(regs: RTC) -> Self {
+    pub fn new_lsi(regs: RTC, rcc: &mut Rcc, pwr:&mut PWR) -> Self {
         let mut result = Rtc {
             regs,
             _clock_source: PhantomData,
         };
 
-        Self::enable_rtc();
+        Self::enable_rtc(&mut rcc.regs, pwr, false);
 
         // Set the prescaler to make it count up once every second.
         let prl = LSI_HERTZ.raw() - 1;
-        assert!(prl < 1 << 20);
-        result.perform_write(|s| {
-            s.regs.prlh.write(|w| unsafe { w.bits(prl >> 16) });
-            s.regs.prll.write(|w| unsafe { w.bits(prl as u16 as u32) });
-        });
+        result.set_prescaler(prl);
 
         result
     }
 
     /// Tries to obtain currently running RTC to prevent reset in case it was running from VBAT.
     /// If the RTC is not running, or is not LSI, it will be reinitialized.
-    pub fn restore_or_new_lsi(regs: RTC) -> RestoredOrNewRtc<RtcClkLsi> {
-        if !Rtc::<RtcClkLsi>::is_enabled() {
-            RestoredOrNewRtc::New(Rtc::new_lsi(regs))
+    pub fn restore_or_new_lsi(regs: RTC, rcc:&mut Rcc, pwr:&mut PWR) -> RestoredOrNewRtc<RtcClkLsi> {
+        if !Rtc::<RtcClkLsi>::is_enabled(&mut rcc.regs) {
+            RestoredOrNewRtc::New(Rtc::new_lsi(regs, rcc, pwr))
         } else {
+            Self::enable_rtc(&mut rcc.regs, pwr, true);
             RestoredOrNewRtc::Restored(Rtc {
                 regs,
                 _clock_source: PhantomData,
@@ -174,26 +182,44 @@ impl Rtc<RtcClkLsi> {
     }
 
     /// Returns whether the RTC is currently enabled and LSI is selected.
-    fn is_enabled() -> bool {
-        let rcc = unsafe { &*RCC::ptr() };
+    fn is_enabled(rcc: &mut RCC) -> bool {
         rcc.bdcr.read().rtcen().bit() && rcc.bdcr.read().rtcsel().is_lsi()
     }
 
     /// Enables the RTC device with the lsi as the clock
-    fn enable_rtc() {
+    fn enable_rtc(rcc: &mut RCC, pwr:&mut PWR, is_restore: bool) {
         // NOTE: Safe RCC access because we are only accessing bdcr
         // and we have a &mut on BackupDomain
-        let rcc = unsafe { &*RCC::ptr() };
-        rcc.csr.modify(|_, w| {
-            // start the LSI oscillator
-            w.lsion().set_bit()
-        });
+        Self::enable_apb_and_dbp(rcc, pwr);
+        Self::enable_lsi(rcc);
+
+        if is_restore {
+            return;
+        }
+
         rcc.bdcr.modify(|_, w| {
             // Enable the RTC
             w.rtcen().set_bit();
             // Set the source of the RTC to LSI
             w.rtcsel().lsi()
         })
+    }
+    fn enable_lsi(rcc: &mut RCC) {
+        rcc.csr.modify(|_, w| {
+            // start the LSI oscillator
+            w.lsion().set_bit()
+        });
+    }
+
+    /// Selects the frequency of the RTC Timer
+    /// NOTE: Maximum frequency of 16384 Hz using the internal LSI
+    pub fn select_frequency(&mut self, frequency: Hertz) {
+        // The manual says that the zero value for the prescaler is not recommended, thus the
+        // minimum division factor is 2 (prescaler + 1)
+        assert!(frequency <= LSI_HERTZ / 2);
+
+        let prescaler = LSI_HERTZ.raw() / frequency.raw() - 1;
+        self.set_prescaler(prescaler);
     }
 }
 
@@ -209,31 +235,28 @@ impl Rtc<RtcClkHseDiv128> {
       you may want to use
       [`restore_or_new_hse`](Rtc::<RtcClkHseDiv128>::restore_or_new_hse) instead.
     */
-    pub fn new_hse(regs: RTC, hse: Hertz) -> Self {
+    pub fn new_hse(regs: RTC, hse: Hertz, rcc: &mut Rcc, pwr:&mut PWR) -> Self {
         let mut result = Rtc {
             regs,
             _clock_source: PhantomData,
         };
 
-        Self::enable_rtc();
+        Self::enable_rtc(&mut rcc.regs, pwr, false);
 
         // Set the prescaler to make it count up once every second.
         let prl = hse.raw() / 128 - 1;
-        assert!(prl < 1 << 20);
-        result.perform_write(|s| {
-            s.regs.prlh.write(|w| unsafe { w.bits(prl >> 16) });
-            s.regs.prll.write(|w| unsafe { w.bits(prl as u16 as u32) });
-        });
+        result.set_prescaler(prl);
 
         result
     }
 
     /// Tries to obtain currently running RTC to prevent reset in case it was running from VBAT.
     /// If the RTC is not running, or is not HSE, it will be reinitialized.
-    pub fn restore_or_new_hse(regs: RTC, hse: Hertz) -> RestoredOrNewRtc<RtcClkHseDiv128> {
-        if !Self::is_enabled() {
-            RestoredOrNewRtc::New(Rtc::new_hse(regs, hse))
+    pub fn restore_or_new_hse(regs: RTC, rcc: &mut Rcc, pwr:&mut PWR, hse: Hertz) -> RestoredOrNewRtc<RtcClkHseDiv128> {
+        if !Self::is_enabled(&mut rcc.regs) {
+            RestoredOrNewRtc::New(Rtc::new_hse(regs, hse, rcc, pwr))
         } else {
+            Self::enable_rtc(&mut rcc.regs, pwr, true);
             RestoredOrNewRtc::Restored(Rtc {
                 regs,
                 _clock_source: PhantomData,
@@ -241,17 +264,22 @@ impl Rtc<RtcClkHseDiv128> {
         }
     }
 
-    fn is_enabled() -> bool {
-        let rcc = unsafe { &*RCC::ptr() };
+    fn is_enabled(rcc: &mut RCC) -> bool {
         let bdcr = rcc.bdcr.read();
         bdcr.rtcen().is_enabled() && bdcr.rtcsel().is_hse()
     }
 
     /// Enables the RTC device with the lsi as the clock
-    fn enable_rtc() {
+    fn enable_rtc(rcc: &mut RCC, pwr:&mut PWR, is_restore: bool) {
         // NOTE: Safe RCC access because we are only accessing bdcr
         // and we have a &mut on BackupDomain
-        let rcc = unsafe { &*RCC::ptr() };
+
+        Self::enable_apb_and_dbp(rcc, pwr);
+
+        if is_restore {
+            return;
+        }
+
         if rcc.cr.read().hserdy().bit_is_clear() {
             panic!("HSE oscillator not ready");
         }
@@ -262,25 +290,27 @@ impl Rtc<RtcClkHseDiv128> {
             w.rtcsel().hse()
         })
     }
+
+    /// Selects the frequency of the RTC Timer
+    /// NOTE: Maximum frequency of hse / 128 / 2 Hz using the external HSE
+    pub fn select_frequency(&mut self, frequency: Hertz, hse: Hertz) {
+        // The manual says that the zero value for the prescaler is not recommended, thus the
+        // minimum division factor is 2 (prescaler + 1)
+        assert!(frequency.raw() <= hse.raw() / 128 / 2);
+
+        let prescaler = hse.raw() / 128 / frequency.raw() - 1;
+        self.set_prescaler(prescaler);
+    }
 }
 
 impl<CS> Rtc<CS> {
-    /// Selects the frequency of the RTC Timer
-    /// NOTE: Maximum frequency of 16384 Hz using the internal LSI
-    pub fn select_frequency(&mut self, frequency: Hertz) {
-        // The manual says that the zero value for the prescaler is not recommended, thus the
-        // minimum division factor is 2 (prescaler + 1)
-        assert!(frequency <= LSI_HERTZ / 2);
+    fn enable_apb_and_dbp(rcc: &mut RCC, pwr: &mut PWR) {
+        PWR::enable(rcc);
+        rcc.apbenr1.modify(|_, w| w.rtcapben().set_bit());
 
-        let prescaler = LSI_HERTZ.raw() / frequency.raw() - 1;
-        self.perform_write(|s| {
-            s.regs.prlh.write(|w| unsafe { w.bits(prescaler >> 16) });
-            s.regs
-                .prll
-                .write(|w| unsafe { w.bits(prescaler as u16 as u32) });
-        });
+        pwr.cr1.modify(|_, w| w.dbp().bit(true));
+        cortex_m::asm::delay(100);
     }
-
     /// Set the current RTC counter value to the specified amount
     pub fn set_time(&mut self, counter_value: u32) {
         self.perform_write(|s| {
@@ -387,6 +417,7 @@ impl<CS> Rtc<CS> {
     fn perform_write(&mut self, func: impl Fn(&mut Self)) {
         // Wait for the last write operation to be done
         while !self.regs.crl.read().rtoff().bit() {}
+
         // Put the clock into config mode
         self.regs.crl.modify(|_, w| w.cnf().set_bit());
 
@@ -395,7 +426,18 @@ impl<CS> Rtc<CS> {
 
         // Take the device out of config mode
         self.regs.crl.modify(|_, w| w.cnf().clear_bit());
+
         // Wait for the write to be done
         while !self.regs.crl.read().rtoff().bit() {}
+    }
+
+    fn set_prescaler(&mut self, prescaler: u32) {
+        assert!(prescaler < 1 << 20);
+        self.perform_write(|s| {
+            s.regs.prlh.write(|w| unsafe { w.bits(prescaler >> 16) });
+            s.regs
+                .prll
+                .write(|w| unsafe { w.bits(prescaler as u16 as u32) });
+        });
     }
 }
