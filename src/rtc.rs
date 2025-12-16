@@ -1,8 +1,10 @@
 /*!
   Real time clock
 */
+
 use crate::pac::{PWR, RCC, RTC};
 use crate::rcc::Rcc;
+use crate::rcc::Enable;
 use crate::time::{Hertz, Hz};
 
 use core::convert::Infallible;
@@ -62,13 +64,13 @@ impl Rtc<RtcClkLse> {
       you may want to use
       [`restore_or_new`](Rtc::<RtcClkLse>::restore_or_new) instead.
     */
-    pub fn new(regs: RTC, rcc: &mut Rcc) -> Self {
+    pub fn new(regs: RTC, rcc: &mut Rcc, pwr:&mut PWR) -> Self {
         let mut result = Rtc {
             regs,
             _clock_source: PhantomData,
         };
 
-        Self::enable_rtc(&mut rcc.regs, false);
+        Self::enable_rtc(&mut rcc.regs, pwr, false);
 
         // Set the prescaler to make it count up once every second.
         let prl = LSE_HERTZ.raw() - 1;
@@ -91,11 +93,11 @@ impl Rtc<RtcClkLse> {
     ///    }
     /// };
     /// ```
-    pub fn restore_or_new(regs: RTC, rcc: &mut Rcc) -> RestoredOrNewRtc<RtcClkLse> {
+    pub fn restore_or_new(regs: RTC, rcc: &mut Rcc, pwr:&mut PWR) -> RestoredOrNewRtc<RtcClkLse> {
         if !Self::is_enabled(&mut rcc.regs) {
-            RestoredOrNewRtc::New(Rtc::new(regs, rcc))
+            RestoredOrNewRtc::New(Rtc::new(regs, rcc, pwr))
         } else {
-            Self::enable_rtc(&mut rcc.regs, true);
+            Self::enable_rtc(&mut rcc.regs, pwr,  true);
             RestoredOrNewRtc::Restored(Rtc {
                 regs,
                 _clock_source: PhantomData,
@@ -110,10 +112,10 @@ impl Rtc<RtcClkLse> {
     }
 
     /// Enables the RTC device with the lse as the clock
-    fn enable_rtc(rcc:&mut RCC, is_restore: bool) {
+    fn enable_rtc(rcc:&mut RCC, pwr:&mut PWR, is_restore: bool) {
         // NOTE: Safe RCC access because we are only accessing bdcr
         // and we have a &mut on BackupDomain
-        Self::enable_apb_and_dbp(rcc);
+        Self::enable_apb_and_dbp(rcc, pwr);
         if is_restore {
             return;
         }
@@ -150,13 +152,13 @@ impl Rtc<RtcClkLsi> {
       you may want to use
       [`restore_or_new_lsi`](Rtc::<RtcClkLsi>::restore_or_new_lsi) instead.
     */
-    pub fn new_lsi(regs: RTC, rcc: &mut Rcc) -> Self {
+    pub fn new_lsi(regs: RTC, rcc: &mut Rcc, pwr:&mut PWR) -> Self {
         let mut result = Rtc {
             regs,
             _clock_source: PhantomData,
         };
 
-        Self::enable_rtc(&mut rcc.regs, false);
+        Self::enable_rtc(&mut rcc.regs, pwr, false);
 
         // Set the prescaler to make it count up once every second.
         let prl = LSI_HERTZ.raw() - 1;
@@ -167,11 +169,11 @@ impl Rtc<RtcClkLsi> {
 
     /// Tries to obtain currently running RTC to prevent reset in case it was running from VBAT.
     /// If the RTC is not running, or is not LSI, it will be reinitialized.
-    pub fn restore_or_new_lsi(regs: RTC, rcc:&mut Rcc) -> RestoredOrNewRtc<RtcClkLsi> {
+    pub fn restore_or_new_lsi(regs: RTC, rcc:&mut Rcc, pwr:&mut PWR) -> RestoredOrNewRtc<RtcClkLsi> {
         if !Rtc::<RtcClkLsi>::is_enabled(&mut rcc.regs) {
-            RestoredOrNewRtc::New(Rtc::new_lsi(regs, rcc))
+            RestoredOrNewRtc::New(Rtc::new_lsi(regs, rcc, pwr))
         } else {
-            Self::enable_rtc(&mut rcc.regs, true);
+            Self::enable_rtc(&mut rcc.regs, pwr, true);
             RestoredOrNewRtc::Restored(Rtc {
                 regs,
                 _clock_source: PhantomData,
@@ -185,10 +187,10 @@ impl Rtc<RtcClkLsi> {
     }
 
     /// Enables the RTC device with the lsi as the clock
-    fn enable_rtc(rcc: &mut RCC, is_restore: bool) {
+    fn enable_rtc(rcc: &mut RCC, pwr:&mut PWR, is_restore: bool) {
         // NOTE: Safe RCC access because we are only accessing bdcr
         // and we have a &mut on BackupDomain
-        Self::enable_apb_and_dbp(rcc);
+        Self::enable_apb_and_dbp(rcc, pwr);
         Self::enable_lsi(rcc);
 
         if is_restore {
@@ -233,13 +235,13 @@ impl Rtc<RtcClkHseDiv128> {
       you may want to use
       [`restore_or_new_hse`](Rtc::<RtcClkHseDiv128>::restore_or_new_hse) instead.
     */
-    pub fn new_hse(regs: RTC, hse: Hertz, rcc: &mut Rcc) -> Self {
+    pub fn new_hse(regs: RTC, hse: Hertz, rcc: &mut Rcc, pwr:&mut PWR) -> Self {
         let mut result = Rtc {
             regs,
             _clock_source: PhantomData,
         };
 
-        Self::enable_rtc(&mut rcc.regs, false);
+        Self::enable_rtc(&mut rcc.regs, pwr, false);
 
         // Set the prescaler to make it count up once every second.
         let prl = hse.raw() / 128 - 1;
@@ -250,11 +252,11 @@ impl Rtc<RtcClkHseDiv128> {
 
     /// Tries to obtain currently running RTC to prevent reset in case it was running from VBAT.
     /// If the RTC is not running, or is not HSE, it will be reinitialized.
-    pub fn restore_or_new_hse(rcc: &mut Rcc, regs: RTC, hse: Hertz) -> RestoredOrNewRtc<RtcClkHseDiv128> {
+    pub fn restore_or_new_hse(rcc: &mut Rcc, regs: RTC, pwr:&mut PWR, hse: Hertz) -> RestoredOrNewRtc<RtcClkHseDiv128> {
         if !Self::is_enabled(&mut rcc.regs) {
-            RestoredOrNewRtc::New(Rtc::new_hse(regs, hse, rcc))
+            RestoredOrNewRtc::New(Rtc::new_hse(regs, hse, rcc, pwr))
         } else {
-            Self::enable_rtc(&mut rcc.regs, true);
+            Self::enable_rtc(&mut rcc.regs, pwr, true);
             RestoredOrNewRtc::Restored(Rtc {
                 regs,
                 _clock_source: PhantomData,
@@ -268,11 +270,11 @@ impl Rtc<RtcClkHseDiv128> {
     }
 
     /// Enables the RTC device with the lsi as the clock
-    fn enable_rtc(rcc: &mut RCC, is_restore: bool) {
+    fn enable_rtc(rcc: &mut RCC, pwr:&mut PWR, is_restore: bool) {
         // NOTE: Safe RCC access because we are only accessing bdcr
         // and we have a &mut on BackupDomain
 
-        Self::enable_apb_and_dbp(rcc);
+        Self::enable_apb_and_dbp(rcc, pwr);
 
         if is_restore {
             return;
@@ -302,11 +304,10 @@ impl Rtc<RtcClkHseDiv128> {
 }
 
 impl<CS> Rtc<CS> {
-    fn enable_apb_and_dbp(rcc: &mut RCC) {
-        rcc.apbenr1.modify(|_, w| w.pwren().set_bit());
+    fn enable_apb_and_dbp(rcc: &mut RCC, pwr: &mut PWR) {
+        PWR::enable(rcc);
         rcc.apbenr1.modify(|_, w| w.rtcapben().set_bit());
 
-        let pwr = unsafe { &*PWR::ptr() };
         pwr.cr1.modify(|_, w| w.dbp().bit(true));
         cortex_m::asm::delay(100);
     }
