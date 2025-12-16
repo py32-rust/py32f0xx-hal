@@ -252,7 +252,7 @@ impl Rtc<RtcClkHseDiv128> {
 
     /// Tries to obtain currently running RTC to prevent reset in case it was running from VBAT.
     /// If the RTC is not running, or is not HSE, it will be reinitialized.
-    pub fn restore_or_new_hse(rcc: &mut Rcc, regs: RTC, pwr:&mut PWR, hse: Hertz) -> RestoredOrNewRtc<RtcClkHseDiv128> {
+    pub fn restore_or_new_hse(regs: RTC, rcc: &mut Rcc, pwr:&mut PWR, hse: Hertz) -> RestoredOrNewRtc<RtcClkHseDiv128> {
         if !Self::is_enabled(&mut rcc.regs) {
             RestoredOrNewRtc::New(Rtc::new_hse(regs, hse, rcc, pwr))
         } else {
