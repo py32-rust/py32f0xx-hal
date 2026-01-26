@@ -3,8 +3,8 @@
 */
 
 use crate::pac::{PWR, RCC, RTC};
-use crate::rcc::Rcc;
 use crate::rcc::Enable;
+use crate::rcc::Rcc;
 use crate::time::{Hertz, Hz};
 
 use core::convert::Infallible;
@@ -64,7 +64,7 @@ impl Rtc<RtcClkLse> {
       you may want to use
       [`restore_or_new`](Rtc::<RtcClkLse>::restore_or_new) instead.
     */
-    pub fn new(regs: RTC, rcc: &mut Rcc, pwr:&mut PWR) -> Self {
+    pub fn new(regs: RTC, rcc: &mut Rcc, pwr: &mut PWR) -> Self {
         let mut result = Rtc {
             regs,
             _clock_source: PhantomData,
@@ -93,11 +93,11 @@ impl Rtc<RtcClkLse> {
     ///    }
     /// };
     /// ```
-    pub fn restore_or_new(regs: RTC, rcc: &mut Rcc, pwr:&mut PWR) -> RestoredOrNewRtc<RtcClkLse> {
-        if !Self::is_enabled(&mut rcc.regs) {
+    pub fn restore_or_new(regs: RTC, rcc: &mut Rcc, pwr: &mut PWR) -> RestoredOrNewRtc<RtcClkLse> {
+        if !Self::is_enabled(&rcc.regs) {
             RestoredOrNewRtc::New(Rtc::new(regs, rcc, pwr))
         } else {
-            Self::enable_rtc(&mut rcc.regs, pwr,  true);
+            Self::enable_rtc(&mut rcc.regs, pwr, true);
             RestoredOrNewRtc::Restored(Rtc {
                 regs,
                 _clock_source: PhantomData,
@@ -106,15 +106,13 @@ impl Rtc<RtcClkLse> {
     }
 
     /// Returns whether the RTC is currently enabled and LSE is selected.
-    fn is_enabled(rcc: &mut RCC) -> bool {
+    fn is_enabled(rcc: &RCC) -> bool {
         let bdcr = rcc.bdcr.read();
         bdcr.rtcen().is_enabled() && bdcr.rtcsel().is_lse()
     }
 
     /// Enables the RTC device with the lse as the clock
-    fn enable_rtc(rcc:&mut RCC, pwr:&mut PWR, is_restore: bool) {
-        // NOTE: Safe RCC access because we are only accessing bdcr
-        // and we have a &mut on BackupDomain
+    fn enable_rtc(rcc: &mut RCC, pwr: &mut PWR, is_restore: bool) {
         Self::enable_apb_and_dbp(rcc, pwr);
         if is_restore {
             return;
@@ -152,7 +150,7 @@ impl Rtc<RtcClkLsi> {
       you may want to use
       [`restore_or_new_lsi`](Rtc::<RtcClkLsi>::restore_or_new_lsi) instead.
     */
-    pub fn new_lsi(regs: RTC, rcc: &mut Rcc, pwr:&mut PWR) -> Self {
+    pub fn new_lsi(regs: RTC, rcc: &mut Rcc, pwr: &mut PWR) -> Self {
         let mut result = Rtc {
             regs,
             _clock_source: PhantomData,
@@ -169,8 +167,12 @@ impl Rtc<RtcClkLsi> {
 
     /// Tries to obtain currently running RTC to prevent reset in case it was running from VBAT.
     /// If the RTC is not running, or is not LSI, it will be reinitialized.
-    pub fn restore_or_new_lsi(regs: RTC, rcc:&mut Rcc, pwr:&mut PWR) -> RestoredOrNewRtc<RtcClkLsi> {
-        if !Rtc::<RtcClkLsi>::is_enabled(&mut rcc.regs) {
+    pub fn restore_or_new_lsi(
+        regs: RTC,
+        rcc: &mut Rcc,
+        pwr: &mut PWR,
+    ) -> RestoredOrNewRtc<RtcClkLsi> {
+        if !Rtc::<RtcClkLsi>::is_enabled(&rcc.regs) {
             RestoredOrNewRtc::New(Rtc::new_lsi(regs, rcc, pwr))
         } else {
             Self::enable_rtc(&mut rcc.regs, pwr, true);
@@ -182,12 +184,12 @@ impl Rtc<RtcClkLsi> {
     }
 
     /// Returns whether the RTC is currently enabled and LSI is selected.
-    fn is_enabled(rcc: &mut RCC) -> bool {
+    fn is_enabled(rcc: &RCC) -> bool {
         rcc.bdcr.read().rtcen().bit() && rcc.bdcr.read().rtcsel().is_lsi()
     }
 
     /// Enables the RTC device with the lsi as the clock
-    fn enable_rtc(rcc: &mut RCC, pwr:&mut PWR, is_restore: bool) {
+    fn enable_rtc(rcc: &mut RCC, pwr: &mut PWR, is_restore: bool) {
         // NOTE: Safe RCC access because we are only accessing bdcr
         // and we have a &mut on BackupDomain
         Self::enable_apb_and_dbp(rcc, pwr);
@@ -235,7 +237,7 @@ impl Rtc<RtcClkHseDiv128> {
       you may want to use
       [`restore_or_new_hse`](Rtc::<RtcClkHseDiv128>::restore_or_new_hse) instead.
     */
-    pub fn new_hse(regs: RTC, hse: Hertz, rcc: &mut Rcc, pwr:&mut PWR) -> Self {
+    pub fn new_hse(regs: RTC, hse: Hertz, rcc: &mut Rcc, pwr: &mut PWR) -> Self {
         let mut result = Rtc {
             regs,
             _clock_source: PhantomData,
@@ -252,8 +254,13 @@ impl Rtc<RtcClkHseDiv128> {
 
     /// Tries to obtain currently running RTC to prevent reset in case it was running from VBAT.
     /// If the RTC is not running, or is not HSE, it will be reinitialized.
-    pub fn restore_or_new_hse(regs: RTC, rcc: &mut Rcc, pwr:&mut PWR, hse: Hertz) -> RestoredOrNewRtc<RtcClkHseDiv128> {
-        if !Self::is_enabled(&mut rcc.regs) {
+    pub fn restore_or_new_hse(
+        regs: RTC,
+        rcc: &mut Rcc,
+        pwr: &mut PWR,
+        hse: Hertz,
+    ) -> RestoredOrNewRtc<RtcClkHseDiv128> {
+        if !Self::is_enabled(&rcc.regs) {
             RestoredOrNewRtc::New(Rtc::new_hse(regs, hse, rcc, pwr))
         } else {
             Self::enable_rtc(&mut rcc.regs, pwr, true);
@@ -264,16 +271,13 @@ impl Rtc<RtcClkHseDiv128> {
         }
     }
 
-    fn is_enabled(rcc: &mut RCC) -> bool {
+    fn is_enabled(rcc: &RCC) -> bool {
         let bdcr = rcc.bdcr.read();
         bdcr.rtcen().is_enabled() && bdcr.rtcsel().is_hse()
     }
 
     /// Enables the RTC device with the lsi as the clock
-    fn enable_rtc(rcc: &mut RCC, pwr:&mut PWR, is_restore: bool) {
-        // NOTE: Safe RCC access because we are only accessing bdcr
-        // and we have a &mut on BackupDomain
-
+    fn enable_rtc(rcc: &mut RCC, pwr: &mut PWR, is_restore: bool) {
         Self::enable_apb_and_dbp(rcc, pwr);
 
         if is_restore {
@@ -306,7 +310,7 @@ impl Rtc<RtcClkHseDiv128> {
 impl<CS> Rtc<CS> {
     fn enable_apb_and_dbp(rcc: &mut RCC, pwr: &mut PWR) {
         PWR::enable(rcc);
-        rcc.apbenr1.modify(|_, w| w.rtcapben().set_bit());
+        RTC::enable(rcc);
 
         pwr.cr1.modify(|_, w| w.dbp().bit(true));
         cortex_m::asm::delay(100);
