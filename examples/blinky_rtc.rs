@@ -15,7 +15,8 @@ use nb::block;
 
 #[entry]
 fn main() -> ! {
-    let dp = pac::Peripherals::take().unwrap();
+    let mut dp = pac::Peripherals::take().unwrap();
+    let mut rcc = dp.RCC.configure().freeze(&mut dp.FLASH);
 
     // Set up the GPIO pin
     let gpioa = dp.GPIOA.split();
@@ -23,7 +24,7 @@ fn main() -> ! {
 
     // Set up the RTC
     // Start the RTC
-    let mut rtc = Rtc::new(dp.RTC);
+    let mut rtc = Rtc::new(dp.RTC, &mut rcc, &mut dp.PWR);
 
     let mut led_on = false;
     loop {
