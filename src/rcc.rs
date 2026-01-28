@@ -68,11 +68,6 @@ pub struct AHB;
 pub struct APB;
 
 impl APB {
-    /// Set power interface clock (PWREN) bit in RCC_APB1ENR
-    pub fn set_pwren() {
-        let rcc = unsafe { &*RCC::ptr() };
-        PWR::enable(rcc);
-    }
     /// Disable debug clock (DBGEN) bit in RCC_APB1ENR
     pub fn disable_dbg() {
         let rcc = unsafe { &*RCC::ptr() };

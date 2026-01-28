@@ -55,7 +55,7 @@ pub struct Rtc<CS = RtcClkLsi> {
 #[cfg(feature = "py32f030")]
 impl Rtc<RtcClkLse> {
     /**
-      Initialises the RTC with low-speed external crystal source (lse).
+      Initialises the RTC with low-speed external crystal source (LSE).
 
       The frequency is set to 1 Hz.
 
@@ -72,7 +72,7 @@ impl Rtc<RtcClkLse> {
 
         // Enable the peripheral
         Self::enable_apb_and_dbp(&mut rcc.regs, pwr);
-        // Initializes the RTC device with the lse as the clock
+        // Initializes the RTC device with the LSE as the clock
         rcc.regs.bdcr.modify(|_, w| {
             // start the LSE oscillator
             w.lseon().set_bit();
@@ -90,11 +90,11 @@ impl Rtc<RtcClkLse> {
     }
 
     /// Tries to obtain currently running RTC to prevent a reset in case it was running from VBAT.
-    /// If the RTC is not running, or is not LSE, it will be reinitialized.
+    /// If the RTC is not running, or is not using LSE, it will be reinitialized.
     ///
     /// # Examples
     /// ```
-    /// let rtc = match Rtc::restore_or_new(p.RTC, &mut backup_domain) {
+    /// let rtc = match Rtc::restore_or_new(p.RTC, &mut rcc, &mut backup_domain) {
     ///    Restored(rtc) => rtc, // The rtc is restored from previous configuration. You may verify the frequency you want if needed.
     ///    New(rtc) => { // The rtc was just initialized, the clock source selected, frequency is 1.Hz()
     ///        // Initialize rtc with desired parameters
@@ -136,7 +136,7 @@ impl Rtc<RtcClkLse> {
 
 impl Rtc<RtcClkLsi> {
     /**
-      Initialises the RTC with low-speed internal oscillator source (lsi).
+      Initialises the RTC with low-speed internal oscillator source (LSI).
 
       The frequency is set to 1 Hz.
 
@@ -169,7 +169,7 @@ impl Rtc<RtcClkLsi> {
     }
 
     /// Tries to obtain currently running RTC to prevent reset in case it was running from VBAT.
-    /// If the RTC is not running, or is not LSI, it will be reinitialized.
+    /// If the RTC is not running, or is not using LSI, it will be reinitialized.
     pub fn restore_or_new_lsi(
         regs: RTC,
         rcc: &mut Rcc,
@@ -214,7 +214,7 @@ impl Rtc<RtcClkLsi> {
 
 impl Rtc<RtcClkHseDiv128> {
     /**
-      Initialises the RTC with high-speed external oscillator source (hse)
+      Initialises the RTC with high-speed external oscillator source (HSE)
       divided by 128.
 
       The frequency is set to 1 Hz.
@@ -223,6 +223,9 @@ impl Rtc<RtcClkHseDiv128> {
       this method will reset the RTC every time, leading to lost time,
       you may want to use
       [`restore_or_new_hse`](Rtc::<RtcClkHseDiv128>::restore_or_new_hse) instead.
+
+      # Panics
+        Panics if HSE is not enabled and running
     */
     pub fn new_hse(regs: RTC, hse: Hertz, rcc: &mut Rcc, pwr: &mut PWR) -> Self {
         let mut result = Rtc {
@@ -251,7 +254,7 @@ impl Rtc<RtcClkHseDiv128> {
     }
 
     /// Tries to obtain currently running RTC to prevent reset in case it was running from VBAT.
-    /// If the RTC is not running, or is not HSE, it will be reinitialized.
+    /// If the RTC is not running, or is not using HSE, it will be reinitialized.
     pub fn restore_or_new_hse(
         regs: RTC,
         rcc: &mut Rcc,
