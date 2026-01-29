@@ -7,7 +7,7 @@ use crate::pac::rcc::{
     icscr::HSI_FS_A,
 };
 
-use crate::pac::{DBG, PWR, RCC};
+use crate::pac::{DBG, RCC};
 use crate::time::{Hertz, Hz};
 
 mod enable;
