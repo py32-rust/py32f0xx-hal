@@ -67,14 +67,6 @@ pub struct AHB;
 #[non_exhaustive]
 pub struct APB;
 
-impl APB {
-    /// Disable debug clock (DBGEN) bit in RCC_APB1ENR
-    pub fn disable_dbg() {
-        let rcc = unsafe { &*RCC::ptr() };
-        DBG::disable(rcc);
-    }
-}
-
 /// MCO source select
 #[derive(Clone, Copy)]
 pub enum MCOSrc {
