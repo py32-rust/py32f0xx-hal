@@ -104,15 +104,14 @@ impl Rtc<RtcClkLse> {
     /// };
     /// ```
     pub fn restore_or_new(regs: RTC, rcc: &mut Rcc, pwr: &mut PWR) -> RestoredOrNewRtc<RtcClkLse> {
-        match Self::is_enabled(&rcc.regs) {
-            false => RestoredOrNewRtc::New(Rtc::new(regs, rcc, pwr)),
-            true => {
-                Self::enable_apb_and_dbp(&mut rcc.regs, pwr);
-                RestoredOrNewRtc::Restored(Rtc {
-                    regs,
-                    _clock_source: PhantomData,
-                })
-            }
+        if Self::is_enabled(&rcc.regs) {
+            Self::enable_apb_and_dbp(&mut rcc.regs, pwr);
+            RestoredOrNewRtc::Restored(Rtc {
+                regs,
+                _clock_source: PhantomData,
+            })
+        } else {
+            RestoredOrNewRtc::New(Rtc::new(regs, rcc, pwr))
         }
     }
 
@@ -175,16 +174,15 @@ impl Rtc<RtcClkLsi> {
         rcc: &mut Rcc,
         pwr: &mut PWR,
     ) -> RestoredOrNewRtc<RtcClkLsi> {
-        match Self::is_enabled(&rcc.regs) {
-            false => RestoredOrNewRtc::New(Rtc::new_lsi(regs, rcc, pwr)),
-            true => {
-                Self::enable_apb_and_dbp(&mut rcc.regs, pwr);
-                Self::enable_lsi(&mut rcc.regs);
-                RestoredOrNewRtc::Restored(Rtc {
-                    regs,
-                    _clock_source: PhantomData,
-                })
-            }
+        if Self::is_enabled(&rcc.regs) {
+            Self::enable_apb_and_dbp(&mut rcc.regs, pwr);
+            Self::enable_lsi(&mut rcc.regs);
+            RestoredOrNewRtc::Restored(Rtc {
+                regs,
+                _clock_source: PhantomData,
+            })
+        } else {
+            RestoredOrNewRtc::New(Rtc::new_lsi(regs, rcc, pwr))
         }
     }
 
@@ -261,15 +259,14 @@ impl Rtc<RtcClkHseDiv128> {
         pwr: &mut PWR,
         hse: Hertz,
     ) -> RestoredOrNewRtc<RtcClkHseDiv128> {
-        match Self::is_enabled(&rcc.regs) {
-            false => RestoredOrNewRtc::New(Rtc::new_hse(regs, hse, rcc, pwr)),
-            true => {
-                Self::enable_apb_and_dbp(&mut rcc.regs, pwr);
-                RestoredOrNewRtc::Restored(Rtc {
-                    regs,
-                    _clock_source: PhantomData,
-                })
-            }
+        if Self::is_enabled(&rcc.regs) {
+            Self::enable_apb_and_dbp(&mut rcc.regs, pwr);
+            RestoredOrNewRtc::Restored(Rtc {
+                regs,
+                _clock_source: PhantomData,
+            })
+        } else {
+            RestoredOrNewRtc::New(Rtc::new_hse(regs, hse, rcc, pwr))
         }
     }
 
