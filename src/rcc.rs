@@ -7,7 +7,7 @@ use crate::pac::rcc::{
     icscr::HSI_FS_A,
 };
 
-use crate::pac::{DBG, PWR, RCC};
+use crate::pac::{DBG, RCC};
 use crate::time::{Hertz, Hz};
 
 mod enable;
@@ -66,19 +66,6 @@ pub struct AHB;
 /// Advanced Peripheral Bus (APB) registers
 #[non_exhaustive]
 pub struct APB;
-
-impl APB {
-    /// Set power interface clock (PWREN) bit in RCC_APB1ENR
-    pub fn set_pwren() {
-        let rcc = unsafe { &*RCC::ptr() };
-        PWR::enable(rcc);
-    }
-    /// Disable debug clock (DBGEN) bit in RCC_APB1ENR
-    pub fn disable_dbg() {
-        let rcc = unsafe { &*RCC::ptr() };
-        DBG::disable(rcc);
-    }
-}
 
 /// MCO source select
 #[derive(Clone, Copy)]

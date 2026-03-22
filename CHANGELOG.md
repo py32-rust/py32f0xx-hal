@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## Unreleased
+
+### Fixed
+
+- RTC works and tested
+
 ## v0.4.1 - 2025-12-01
 
 ### Fixed
