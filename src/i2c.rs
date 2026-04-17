@@ -610,13 +610,17 @@ where
         Ok(())
     }
 
-    /// Transmit a byte on I2C bus
+    /// Transmit bytes on I2C bus
     pub fn slave_write_bytes(&mut self, bytes: &[u8]) -> Result<(), Error> {
-        self.write_wo_prepare(bytes)
+        self.write_wo_prepare(bytes)?;
+        self.check_and_clear_error_flags()?;
+        Ok(())
     }
 
-    /// Receive a byte on I2C bus
+    /// Receive bytes on I2C bus
     pub fn slave_read_bytes(&mut self, bytes: &mut [u8]) -> Result<(), Error> {
-        self.read_wo_prepare(bytes)
+        self.read_wo_prepare(bytes)?;
+        self.check_and_clear_error_flags()?;
+        Ok(())
     }
 }

@@ -44,11 +44,11 @@ where
     }
 }
 
-impl<I2C, SCLPIN, SDAPIN> i2c::I2c<TenBitAddress> for I2c<I2C, SCLPIN, SDAPIN, Master>
-where
-I2C: Instance,
-{
-    fn transaction(&mut self, address: u16, operations: &mut [Operation<'_>]) -> Result<(), Self::Error> {
-        unimplemented!();
-    }
-}
+// impl<I2C, SCLPIN, SDAPIN> i2c::I2c<TenBitAddress> for I2c<I2C, SCLPIN, SDAPIN, Master>
+// where
+// I2C: Instance,
+// {
+//     fn transaction(&mut self, _address: u16, _operations: &mut [Operation<'_>]) -> Result<(), Self::Error> {
+//         unimplemented!();
+//     }
+// }
