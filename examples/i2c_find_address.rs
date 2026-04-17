@@ -7,7 +7,7 @@ use defmt_rtt as _;
 
 use py32f0xx_hal as hal;
 
-use crate::hal::{i2c::I2c, pac, prelude::*};
+use crate::hal::{pac, prelude::*};
 
 use cortex_m_rt::entry;
 use defmt::info;
@@ -31,7 +31,7 @@ fn main() -> ! {
     let sda = gpioa.pa2.into_alternate_af12();
 
     // Configure I2C with 100kHz rate
-    let mut i2c = I2c::i2c(p.I2C, (scl, sda), 100.kHz(), &rcc.clocks);
+    let mut i2c = p.I2C.i2c_master((scl, sda), 100.kHz(), &rcc);
 
     let mut devices = 0;
     // I2C addresses are 7-bit wide, covering the 0-127 range

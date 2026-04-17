@@ -1,20 +1,18 @@
 //! API for the integrated I2C peripheral
+use core::marker::PhantomData;
 use core::ops::Deref;
 
-use embedded_hal_02::blocking::i2c::{Read, Write, WriteRead};
+// embedded-hal v1 traits
+mod hal_1;
+// embedded-hal v0.2 traits
+mod hal_02;
 
 use crate::{
     gpio::*,
     pac,
-    rcc::{Clocks, Enable, Reset},
-    time::{kHz, Hertz, KiloHertz},
+    rcc::{Enable, Rcc, Reset},
+    time::{Hertz, KiloHertz, kHz},
 };
-
-/// I2C abstraction
-pub struct I2c<I2C: Instance, SCLPIN, SDAPIN> {
-    i2c: I2C,
-    pins: (SCLPIN, SDAPIN),
-}
 
 /// Trait for identifying SCL pins
 pub trait SclPin<I2C> {}
@@ -134,6 +132,101 @@ pub enum Error {
     PEC,
 }
 
+/// Interrupt event
+pub enum Event {
+    /// Protocol event
+    /// SB - Start sent (Master)
+    /// ADDR - Address sent (Master)
+    /// ADDR - Address matched (Slave)
+    /// STOPF - Stop detection (Slave)
+    /// BTF - Transfer Complete Reload
+    Protocol,
+    /// Buffer Event
+    /// RxNE - Receive buffer not empty
+    /// TxE - Transmit buffer empty
+    Buffer,
+    /// Error Event
+    /// BERR - Bus Error
+    /// ARLO - Arbitration loss (Master)
+    /// AF - Ack failed
+    /// OVR - Overrun/Underrun
+    /// PEC - PEC error
+    Error,
+}
+
+/// What mode is I2C in after a slave address match
+pub enum SlaveAddressMode {
+    /// Slave Transmitter function, slave sends byte(s)
+    Write,
+    /// Slave Receive function, slave receives byte(s)
+    Read,
+}
+
+/// Master mode
+pub struct Master {}
+
+/// Slave Mode
+pub struct Slave {}
+
+/// Extension trait for I2C peripherals
+pub trait I2cExt: Sized + Instance {
+    /// Initialize a [I2c] from the hardware in master mode
+    fn i2c_master<SCLPIN, SDAPIN, Master>(
+        self,
+        pins: (SCLPIN, SDAPIN),
+        speed: KiloHertz,
+        rcc: &Rcc,
+    ) -> I2c<Self, SCLPIN, SDAPIN, Master>
+    where
+        SCLPIN: SclPin<Self>,
+        SDAPIN: SdaPin<Self>;
+
+    /// Initialize a [I2c] from the hardware in slave mode
+    fn i2c_slave<SCLPIN, SDAPIN, Slave>(
+        self,
+        pins: (SCLPIN, SDAPIN),
+        speed: KiloHertz,
+        rcc: &Rcc,
+    ) -> I2c<Self, SCLPIN, SDAPIN, Slave>
+    where
+        SCLPIN: SclPin<Self>,
+        SDAPIN: SdaPin<Self>;
+}
+
+impl<I2C: Instance> I2cExt for I2C {
+    fn i2c_master<SCLPIN, SDAPIN, Master>(
+        self,
+        pins: (SCLPIN, SDAPIN),
+        speed: KiloHertz,
+        rcc: &Rcc,
+    ) -> I2c<I2C, SCLPIN, SDAPIN, Master>
+    where
+        SCLPIN: SclPin<Self>,
+        SDAPIN: SdaPin<Self>,
+    {
+        I2c::new(self, pins, speed, rcc)
+    }
+    fn i2c_slave<SCLPIN, SDAPIN, Slave>(
+        self,
+        pins: (SCLPIN, SDAPIN),
+        speed: KiloHertz,
+        rcc: &Rcc,
+    ) -> I2c<I2C, SCLPIN, SDAPIN, Slave>
+    where
+        SCLPIN: SclPin<Self>,
+        SDAPIN: SdaPin<Self>,
+    {
+        I2c::new(self, pins, speed, rcc)
+    }
+}
+
+/// I2C abstraction
+pub struct I2c<I2C, SCLPIN, SDAPIN, MODE> {
+    i2c: I2C,
+    pins: (SCLPIN, SDAPIN),
+    _mode: PhantomData<MODE>,
+}
+
 // It's s needed for the impls, but rustc doesn't recognize that
 #[allow(dead_code)]
 type I2cRegisterBlock = crate::pac::i2c::RegisterBlock;
@@ -153,23 +246,6 @@ macro_rules! i2c {
                     <$I2C>::ptr()
                 }
             }
-
-            impl<SCLPIN, SDAPIN> I2c<$I2C, SCLPIN, SDAPIN> {
-                /// Create an instance of I2C peripheral
-                pub fn $i2c(i2c: $I2C, pins: (SCLPIN, SDAPIN), speed: KiloHertz, clocks: &Clocks) -> Self
-                where
-                    SCLPIN: SclPin<$I2C>,
-                    SDAPIN: SdaPin<$I2C>,
-                {
-                    let rcc = unsafe { &(*pac::RCC::ptr()) };
-                    // Enable clock for I2C
-                    $I2C::enable(rcc);
-
-                    // Reset I2C
-                    $I2C::reset(rcc);
-                    I2c { i2c, pins }.i2c_init(clocks.pclk(), speed)
-                }
-            }
         )+
     }
 }
@@ -178,10 +254,30 @@ i2c! {
     I2C: i2c,
 }
 
-impl<I2C, SCLPIN, SDAPIN> I2c<I2C, SCLPIN, SDAPIN>
+impl<I2C, SCLPIN, SDAPIN, MODE> I2c<I2C, SCLPIN, SDAPIN, MODE>
 where
     I2C: Instance,
 {
+    /// Create an instance of I2C peripheral
+    pub fn new(i2c: I2C, pins: (SCLPIN, SDAPIN), speed: KiloHertz, rcc: &Rcc) -> Self
+    where
+        SCLPIN: SclPin<I2C>,
+        SDAPIN: SdaPin<I2C>,
+    {
+        let rcc_regs = unsafe { &(*pac::RCC::ptr()) };
+        // Enable clock for I2C
+        I2C::enable(rcc_regs);
+
+        // Reset I2C
+        I2C::reset(rcc_regs);
+        I2c {
+            i2c,
+            pins,
+            _mode: PhantomData,
+        }
+        .i2c_init(rcc.clocks.pclk(), speed)
+    }
+
     fn i2c_init(self, freq: Hertz, speed: KiloHertz) -> Self {
         // Make sure the I2C unit is disabled so we can configure it
         self.i2c.cr1.modify(|_, w| w.pe().clear_bit());
@@ -265,6 +361,63 @@ where
         }
 
         Ok(sr)
+    }
+
+    /// Listen for interrupt events
+    pub fn listen(&mut self, event: Event) {
+        match event {
+            Event::Protocol => self.i2c.cr2.modify(|_, w| w.itevten().enabled()),
+            Event::Buffer => self
+                .i2c
+                .cr2
+                .modify(|_, w| w.itevten().enabled().itbufen().enabled()),
+            Event::Error => self.i2c.cr2.modify(|_, w| w.iterren().enabled()),
+        }
+    }
+
+    /// Stop listening for interrupt events
+    pub fn unlisten(&mut self, event: Event) {
+        match event {
+            Event::Protocol => self.i2c.cr2.modify(|_, w| w.itevten().disabled()),
+            Event::Buffer => self.i2c.cr2.modify(|_, w| w.itbufen().disabled()),
+            Event::Error => self.i2c.cr2.modify(|_, w| w.iterren().disabled()),
+        }
+    }
+
+    /// Returns true if start condition sent
+    #[inline]
+    pub fn is_start(&self) -> bool {
+        self.i2c.sr1.read().sb().bit_is_set()
+    }
+
+    /// Returns true if address sent (master mode), or address matched (slave mode)
+    #[inline]
+    pub fn is_address(&self) -> bool {
+        self.i2c.sr1.read().addr().bit_is_set()
+    }
+
+    /// Returns true if byte transfer finished
+    #[inline]
+    pub fn is_transfer_finished(&self) -> bool {
+        self.i2c.sr1.read().btf().bit_is_set()
+    }
+
+    /// Returns true if stop condition detected (slave mode)
+    #[inline]
+    pub fn is_stop_detected(&self) -> bool {
+        self.i2c.sr1.read().stopf().bit_is_set()
+    }
+
+    /// Returns true if receiver data register not empty
+    #[inline]
+    pub fn is_rxne(&self) -> bool {
+        self.i2c.sr1.read().rxne().bit_is_set()
+    }
+
+    /// Returns true if transmitter data register empty
+    #[inline]
+    pub fn is_txe(&self) -> bool {
+        self.i2c.sr1.read().txe().bit_is_set()
     }
 
     #[inline(always)]
@@ -410,66 +563,60 @@ where
     }
 }
 
-impl<I2C, SCLPIN, SDAPIN> WriteRead for I2c<I2C, SCLPIN, SDAPIN>
+impl<I2C, SCLPIN, SDAPIN> I2c<I2C, SCLPIN, SDAPIN, Slave>
 where
     I2C: Instance,
 {
-    type Error = Error;
+    /// Has the address sent matched our address
+    #[inline]
+    pub fn is_address_match(&mut self) -> Result<bool, Error> {
+        let sr1 = self.check_and_clear_error_flags()?;
+        Ok(sr1.addr().is_match())
+    }
 
-    fn write_read(&mut self, addr: u8, bytes: &[u8], buffer: &mut [u8]) -> Result<(), Error> {
-        // Prepare for write
-        self.prepare(addr, true)?;
+    /// Clear address match, get address r/w mode
+    #[inline]
+    pub fn clear_address_match(&mut self) -> Result<SlaveAddressMode, Error> {
+        let sr2 = self.i2c.sr2.read();
+        if sr2.tra().is_transferred() {
+            Ok(SlaveAddressMode::Write)
+        } else {
+            Ok(SlaveAddressMode::Read)
+        }
+    }
 
-        // Send out all individual bytes
-        for c in bytes {
-            self.send_byte(*c)?;
+    /// Wait for a connection from a master device on I2C bus
+    pub fn prepare_wait(&mut self, address: u8) -> Result<(), Error> {
+        // Wait until a previous STOP condition finishes.
+        // It is possible that the STOP condition is still being generated
+        // when we reach here, so we wait until it finishes before proceeding
+        // to start a new transaction.
+        loop {
+            self.check_and_clear_error_flags()?;
+            if self.i2c.cr1.read().stop().bit_is_clear() {
+                break;
+            }
         }
 
-        // Prepare for read
-        self.prepare(addr, false)?;
+        // Clear all pending error bits
+        self.i2c.sr1.write(|w| unsafe { w.bits(0) });
 
-        self.read_wo_prepare(buffer)?;
+        // Set up current address, we're waiting on
+        self.i2c.oar1.write(|w| unsafe { w.bits(address as u32) });
 
-        Ok(())
-    }
-}
-
-impl<I2C, SCLPIN, SDAPIN> Read for I2c<I2C, SCLPIN, SDAPIN>
-where
-    I2C: Instance,
-{
-    type Error = Error;
-
-    fn read(&mut self, addr: u8, buffer: &mut [u8]) -> Result<(), Error> {
-        // Prepare for read
-        self.prepare(addr, false)?;
-
-        // Now read in all bytes
-        self.read_wo_prepare(buffer)?;
-
-        // Check and clear flags if they somehow ended up set
-        self.check_and_clear_error_flags()?;
+        // set ACK
+        self.i2c.cr1.modify(|_, w| w.ack().set_bit());
 
         Ok(())
     }
-}
 
-impl<I2C, SCLPIN, SDAPIN> Write for I2c<I2C, SCLPIN, SDAPIN>
-where
-    I2C: Instance,
-{
-    type Error = Error;
+    /// Transmit a byte on I2C bus
+    pub fn slave_write_bytes(&mut self, bytes: &[u8]) -> Result<(), Error> {
+        self.write_wo_prepare(bytes)
+    }
 
-    fn write(&mut self, addr: u8, bytes: &[u8]) -> Result<(), Error> {
-        // Prepare for write
-        self.prepare(addr, true)?;
-
-        // Now write all bytes
-        self.write_wo_prepare(bytes)?;
-
-        // Check and clear flags if they somehow ended up set
-        self.check_and_clear_error_flags()?;
-
-        Ok(())
+    /// Receive a byte on I2C bus
+    pub fn slave_read_bytes(&mut self, bytes: &mut [u8]) -> Result<(), Error> {
+        self.read_wo_prepare(bytes)
     }
 }
