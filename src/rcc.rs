@@ -59,6 +59,21 @@ impl Rcc {
     }
 }
 
+impl core::ops::Deref for Rcc {
+    type Target = RCC;
+
+    fn deref(&self) -> &Self::Target {
+        &self.regs
+    }
+}
+
+impl core::ops::DerefMut for Rcc {
+
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.regs
+    }
+}
+
 /// AMBA High-performance Bus (AHB) registers
 #[non_exhaustive]
 pub struct AHB;

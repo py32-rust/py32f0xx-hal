@@ -17,7 +17,7 @@ use embedded_hal_02::blocking::i2c::Write;
 fn main() -> ! {
     let p = pac::Peripherals::take().unwrap();
     let mut flash = p.FLASH;
-    let rcc = p
+    let mut rcc = p
         .RCC
         .configure()
         .sysclk(24.MHz())
@@ -31,7 +31,7 @@ fn main() -> ! {
     let sda = gpioa.pa2.into_alternate_af12();
 
     // Configure I2C with 100kHz rate
-    let mut i2c = p.I2C.i2c_master((scl, sda), 100.kHz(), &rcc);
+    let mut i2c = p.I2C.i2c_master((scl, sda), 100.kHz(), &mut rcc);
 
     let mut devices = 0;
     // I2C addresses are 7-bit wide, covering the 0-127 range

@@ -16,7 +16,7 @@ use defmt::{error, info};
 fn main() -> ! {
     let p = pac::Peripherals::take().unwrap();
     let mut flash = p.FLASH;
-    let rcc = p
+    let mut rcc = p
         .RCC
         .configure()
         .sysclk(24.MHz())
@@ -30,7 +30,7 @@ fn main() -> ! {
     let sda = gpioa.pa2.into_alternate_af12();
 
     // Configure I2C as slave with 100kHz rate
-    let mut i2c = p.I2C.i2c_slave((scl, sda), 100.kHz(), &rcc);
+    let mut i2c = p.I2C.i2c_slave((scl, sda), 100.kHz(), &mut rcc);
 
     // set the address
     i2c.prepare_wait(0x1c).unwrap();

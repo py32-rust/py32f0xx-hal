@@ -1,120 +1,20 @@
 //! API for the integrated I2C peripheral
 use core::marker::PhantomData;
 use core::ops::Deref;
+use crate::{
+    rcc::{Enable, Rcc, Reset},
+    time::{Hertz, KiloHertz, kHz},
+};
+
+// i2c pin definitions
+mod pins;
+use pins::{SclPin, SdaPin};
 
 // embedded-hal v1 traits
 mod hal_1;
 // embedded-hal v0.2 traits
 mod hal_02;
 
-use crate::{
-    gpio::*,
-    pac,
-    rcc::{Enable, Rcc, Reset},
-    time::{Hertz, KiloHertz, kHz},
-};
-
-/// Trait for identifying SCL pins
-pub trait SclPin<I2C> {}
-/// Trait for identifying SDA pins
-pub trait SdaPin<I2C> {}
-
-macro_rules! i2c_pins {
-    ($($I2C:ident => {
-        scl => [$($scl:ty),+ $(,)*],
-        sda => [$($sda:ty),+ $(,)*],
-    })+) => {
-        $(
-            $(
-                impl SclPin<crate::pac::$I2C> for $scl {}
-            )+
-            $(
-                impl SdaPin<crate::pac::$I2C> for $sda {}
-            )+
-        )+
-    }
-}
-
-#[cfg(feature = "py32f030")]
-i2c_pins! {
-    I2C => {
-        scl => [
-            gpioa::PA3<Alternate<AF12>>,
-            gpioa::PA8<Alternate<AF12>>,
-            gpioa::PA9<Alternate<AF6>>,
-            gpioa::PA10<Alternate<AF12>>,
-            gpioa::PA11<Alternate<AF6>>,
-            gpiob::PB6<Alternate<AF6>>,
-            gpiob::PB8<Alternate<AF6>>,
-            gpiof::PF1<Alternate<AF12>>
-        ],
-        sda => [
-            gpioa::PA2<Alternate<AF12>>,
-            gpioa::PA7<Alternate<AF12>>,
-            gpioa::PA9<Alternate<AF12>>,
-            gpioa::PA10<Alternate<AF6>>,
-            gpioa::PA12<Alternate<AF6>>,
-            gpiob::PB7<Alternate<AF6>>,
-            gpiof::PF0<Alternate<AF12>>
-        ],
-    }
-}
-
-#[cfg(feature = "py32f002a")]
-i2c_pins! {
-    I2C => {
-        scl => [
-            gpioa::PA3<Alternate<AF12>>,
-            gpioa::PA8<Alternate<AF12>>,
-            gpioa::PA9<Alternate<AF6>>,
-            gpioa::PA10<Alternate<AF12>>,
-            gpiob::PB6<Alternate<AF6>>,
-            gpiob::PB8<Alternate<AF6>>,
-            gpiof::PF1<Alternate<AF12>>
-        ],
-        sda => [
-            gpioa::PA2<Alternate<AF12>>,
-            gpioa::PA7<Alternate<AF12>>,
-            gpioa::PA9<Alternate<AF12>>,
-            gpioa::PA10<Alternate<AF6>>,
-            gpioa::PA12<Alternate<AF6>>,
-            gpiob::PB7<Alternate<AF6>>,
-            gpiof::PF0<Alternate<AF12>>
-        ],
-    }
-}
-
-#[cfg(feature = "py32f003")]
-i2c_pins! {
-    I2C => {
-        scl => [
-            gpioa::PA3<Alternate<AF12>>,
-            gpiob::PB6<Alternate<AF6>>,
-            gpiof::PF1<Alternate<AF12>>
-        ],
-        sda => [
-            gpioa::PA2<Alternate<AF12>>,
-            gpioa::PA7<Alternate<AF12>>,
-            gpioa::PA12<Alternate<AF6>>,
-            gpiob::PB7<Alternate<AF6>>,
-            gpiof::PF0<Alternate<AF12>>
-        ],
-    }
-}
-
-#[cfg(feature = "py32f002b")]
-i2c_pins! {
-    I2C => {
-        scl => [
-            gpioa::PA2<Alternate<AF6>>,
-            gpiob::PB3<Alternate<AF6>>,
-        ],
-        sda => [
-            gpiob::PB4<Alternate<AF6>>,
-            gpiob::PB6<Alternate<AF6>>,
-        ],
-    }
-}
 
 /// Error enum for I2C peripheral
 #[derive(Debug)]
@@ -132,6 +32,7 @@ pub enum Error {
     PEC,
 }
 
+// implement Display for core::error::Error trait
 impl core::fmt::Display for Error {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         let s = match self {
@@ -147,6 +48,7 @@ impl core::fmt::Display for Error {
 impl core::error::Error for Error {}
 
 /// Interrupt event
+#[derive(Debug)]
 pub enum Event {
     /// Protocol event
     /// SB - Start sent (Master)
@@ -169,6 +71,7 @@ pub enum Event {
 }
 
 /// What mode is I2C in after a slave address match
+#[derive(Debug)]
 pub enum SlaveAddressMode {
     /// Slave Transmitter function, slave sends byte(s)
     Write,
@@ -189,7 +92,7 @@ pub trait I2cExt: Sized + Instance {
         self,
         pins: (SCLPIN, SDAPIN),
         speed: KiloHertz,
-        rcc: &Rcc,
+        rcc: &mut Rcc,
     ) -> I2c<Self, SCLPIN, SDAPIN, Master>
     where
         SCLPIN: SclPin<Self>,
@@ -200,7 +103,7 @@ pub trait I2cExt: Sized + Instance {
         self,
         pins: (SCLPIN, SDAPIN),
         speed: KiloHertz,
-        rcc: &Rcc,
+        rcc: &mut Rcc,
     ) -> I2c<Self, SCLPIN, SDAPIN, Slave>
     where
         SCLPIN: SclPin<Self>,
@@ -212,7 +115,7 @@ impl<I2C: Instance> I2cExt for I2C {
         self,
         pins: (SCLPIN, SDAPIN),
         speed: KiloHertz,
-        rcc: &Rcc,
+        rcc: &mut Rcc,
     ) -> I2c<I2C, SCLPIN, SDAPIN, Master>
     where
         SCLPIN: SclPin<Self>,
@@ -224,7 +127,7 @@ impl<I2C: Instance> I2cExt for I2C {
         self,
         pins: (SCLPIN, SDAPIN),
         speed: KiloHertz,
-        rcc: &Rcc,
+        rcc: &mut Rcc,
     ) -> I2c<I2C, SCLPIN, SDAPIN, Slave>
     where
         SCLPIN: SclPin<Self>,
@@ -273,12 +176,12 @@ where
     I2C: Instance,
 {
     /// Create an instance of I2C peripheral
-    pub fn new(i2c: I2C, pins: (SCLPIN, SDAPIN), speed: KiloHertz, rcc: &Rcc) -> Self
+    pub fn new(i2c: I2C, pins: (SCLPIN, SDAPIN), speed: KiloHertz, rcc: &mut Rcc) -> Self
     where
         SCLPIN: SclPin<I2C>,
         SDAPIN: SdaPin<I2C>,
     {
-        let rcc_regs = unsafe { &(*pac::RCC::ptr()) };
+        let rcc_regs = Rcc::deref(rcc);
         // Enable clock for I2C
         I2C::enable(rcc_regs);
 
