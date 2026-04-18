@@ -1,6 +1,6 @@
 use super::*;
 
-pub use embedded_hal::i2c::{self, SevenBitAddress, TenBitAddress, Operation};
+pub use embedded_hal::i2c::{self, SevenBitAddress, Operation};
 
 impl i2c::Error for Error {
     fn kind(&self) -> i2c::ErrorKind {

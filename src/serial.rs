@@ -275,6 +275,21 @@ pub enum Error {
     Other,
 }
 
+impl core::fmt::Display for Error {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        let s = match self {
+            Error::Overrun => "Overrun",
+            Error::FrameFormat => "FrameFormat",
+            Error::Parity => "Parity",
+            Error::Noise => "Noise",
+            Error::Other => "Other",
+        };
+        write!(f, "Serial {} error", s)
+    }
+}
+
+impl core::error::Error for Error {}
+
 /// Length of word for Serial device
 #[derive(Clone)]
 pub enum WordLength {

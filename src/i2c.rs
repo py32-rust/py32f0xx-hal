@@ -132,6 +132,20 @@ pub enum Error {
     PEC,
 }
 
+impl core::fmt::Display for Error {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        let s = match self {
+            Error::OVERRUN => "Overrun",
+            Error::NACK => "Nack",
+            Error::BUS => "Bus",
+            Error::PEC => "Packet error check",
+        };
+        write!(f, "I2c {} error", s)
+    }
+}
+
+impl core::error::Error for Error {}
+
 /// Interrupt event
 pub enum Event {
     /// Protocol event
