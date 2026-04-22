@@ -35,7 +35,7 @@
 use super::{
     compute_arr_presc, Channel, FTimer, Instance, Ocm, OcmNPolarity, OcmPolarity, Timer, WithPwm,
 };
-use crate::rcc::Clocks;
+use crate::rcc::Rcc;
 use core::marker::PhantomData;
 use core::ops::{Deref, DerefMut};
 use fugit::{HertzU32 as Hertz, TimerDurationU32};
@@ -221,13 +221,13 @@ where
         self,
         pins: PINS,
         time: TimerDurationU32<FREQ>,
-        clocks: &Clocks,
+        rcc: &mut Rcc,
     ) -> Pwm<Self, P, PINS, FREQ>
     where
         PINS: Pins<Self, P>;
 
     /// Configure a [Timer] into a [PwmHz] with a list of pins and a frequency
-    fn pwm_hz<P, PINS>(self, pins: PINS, freq: Hertz, clocks: &Clocks) -> PwmHz<Self, P, PINS>
+    fn pwm_hz<P, PINS>(self, pins: PINS, freq: Hertz, rcc: &mut Rcc) -> PwmHz<Self, P, PINS>
     where
         PINS: Pins<Self, P>;
 
@@ -236,12 +236,12 @@ where
         self,
         pins: PINS,
         time: TimerDurationU32<1_000_000>,
-        clocks: &Clocks,
+        rcc: &mut Rcc,
     ) -> Pwm<Self, P, PINS, 1_000_000>
     where
         PINS: Pins<Self, P>,
     {
-        self.pwm::<_, _, 1_000_000>(pins, time, clocks)
+        self.pwm::<_, _, 1_000_000>(pins, time, rcc)
     }
 }
 
@@ -254,20 +254,20 @@ where
         self,
         pins: PINS,
         time: TimerDurationU32<FREQ>,
-        clocks: &Clocks,
+        rcc: &mut Rcc,
     ) -> Pwm<TIM, P, PINS, FREQ>
     where
         PINS: Pins<TIM, P>,
     {
-        FTimer::<Self, FREQ>::new(self, clocks).pwm(pins, time)
+        FTimer::<Self, FREQ>::new(self, rcc).pwm(pins, time)
     }
 
     /// Configure a [Timer] into a [PwmHz] with a list of pins and a frequency
-    fn pwm_hz<P, PINS>(self, pins: PINS, time: Hertz, clocks: &Clocks) -> PwmHz<TIM, P, PINS>
+    fn pwm_hz<P, PINS>(self, pins: PINS, time: Hertz, rcc: &mut Rcc) -> PwmHz<TIM, P, PINS>
     where
         PINS: Pins<TIM, P>,
     {
-        Timer::new(self, clocks).pwm_hz(pins, time)
+        Timer::new(self, rcc).pwm_hz(pins, time)
     }
 }
 

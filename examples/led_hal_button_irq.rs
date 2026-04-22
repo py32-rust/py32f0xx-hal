@@ -36,10 +36,10 @@ fn main() -> ! {
     rcc.apbenr2.modify(|_, w| w.syscfgen().set_bit());
 
     let mut flash = p.FLASH;
-    let rcc = rcc.configure().sysclk(24.MHz()).freeze(&mut flash);
+    let mut rcc = rcc.configure().sysclk(24.MHz()).freeze(&mut flash);
 
-    let gpioa = p.GPIOA.split();
-    let gpiob = p.GPIOB.split();
+    let gpioa = p.GPIOA.split(&mut rcc);
+    let gpiob = p.GPIOB.split(&mut rcc);
 
     // Configure PB2 as input (button)
     let mut int_pin = gpiob.pb2.into_pull_down_input();
@@ -54,7 +54,7 @@ fn main() -> ! {
     led.set_low();
 
     // Initialise delay provider
-    let delay = cp.SYST.delay(&rcc.clocks);
+    let delay = cp.SYST.delay(&mut rcc);
 
     // Move control over LED and DELAY and EXTI into global mutexes
     cortex_m::interrupt::free(move |cs| {

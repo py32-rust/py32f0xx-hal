@@ -16,9 +16,9 @@ use embedded_hal_02::blocking::delay::DelayMs;
 fn main() -> ! {
     let mut p = pac::Peripherals::take().unwrap();
     let cp = Peripherals::take().unwrap();
-    let rcc = p.RCC.configure().freeze(&mut p.FLASH);
+    let mut rcc = p.RCC.configure().freeze(&mut p.FLASH);
 
-    let gpioa = p.GPIOA.split();
+    let gpioa = p.GPIOA.split(&mut rcc);
 
     // (Re-)configure PA5 as output
     let mut led = gpioa.pa5.into_push_pull_output();
@@ -26,10 +26,10 @@ fn main() -> ! {
     let mut an_in = gpioa.pa0.into_analog();
 
     // Get delay provider
-    let mut delay = cp.SYST.delay(&rcc.clocks);
+    let mut delay = cp.SYST.delay(&mut rcc);
 
     // Get access to the ADC
-    let mut adc = Adc::new(p.ADC, hal::adc::AdcClockMode::Pclk);
+    let mut adc = Adc::new(p.ADC, hal::adc::AdcClockMode::Pclk, &mut rcc);
 
     loop {
         led.toggle();

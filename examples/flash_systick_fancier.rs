@@ -23,10 +23,10 @@ static GPIO: Mutex<RefCell<Option<LEDPIN>>> = Mutex::new(RefCell::new(None));
 fn main() -> ! {
     let mut p = pac::Peripherals::take().unwrap();
     let cp = Peripherals::take().unwrap();
-    let _rcc = p.RCC.configure().sysclk(24.MHz()).freeze(&mut p.FLASH);
+    let mut rcc = p.RCC.configure().sysclk(24.MHz()).freeze(&mut p.FLASH);
 
     // Get access to individual pins in the GPIO port
-    let gpioa = p.GPIOA.split();
+    let gpioa = p.GPIOA.split(&mut rcc);
 
     // (Re-)configure the pin connected to our LED as output
     let led = gpioa.pa5.into_push_pull_output();

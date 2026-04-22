@@ -5,7 +5,7 @@
 //! implement periodic counting timers.
 //!
 //! ```
-//! let mut timer = p.TIM3.counter_hz(&rcc.clocks);
+//! let mut timer = p.TIM3.counter_hz(&mut rcc);
 //! timer.start(1.Hz()).unwrap();
 //! loop {
 //!     // ... do something here
@@ -16,7 +16,7 @@
 //! Using the SysTick timer
 //! ```
 //! let cp = cortex_m::peripheral::Peripherals::take().unwrap();
-//! let mut timer = cp.SYST.counter_us(&rcc.clocks);
+//! let mut timer = cp.SYST.counter_us(&mut rcc);
 //! timer.start(10.millis()).unwrap();
 //! loop {
 //!     // ... do something here

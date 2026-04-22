@@ -56,9 +56,9 @@ use crate::{
             cfgr2::CKMODE_A,
             smpr::SMP_A,
         },
-        ADC, RCC,
+        ADC,
     },
-    rcc::{Enable, Reset},
+    rcc::{Rcc, Enable, Reset},
 };
 
 /// Analog to Digital converter interface
@@ -408,14 +408,14 @@ impl Adc {
     /// Sets all configurable parameters to defaults, enables the HSI14 clock
     /// for the ADC if it is not already enabled and performs a boot time
     /// calibration. As such this method may take an appreciable time to run.
-    pub fn new(adc: ADC, ckmode: AdcClockMode) -> Self {
+    pub fn new(adc: ADC, ckmode: AdcClockMode, rcc: &mut Rcc) -> Self {
         let mut s = Self {
             rb: adc,
             sample_time: AdcSampleTime::default(),
             align: AdcAlign::default(),
             precision: AdcPrecision::default(),
         };
-        s.select_clock(ckmode);
+        s.select_clock(ckmode, rcc);
         s.calibrate();
         s
     }
@@ -524,10 +524,9 @@ impl Adc {
             .modify(|_, w| w.dmacfg().bit(dmacfg).dmaen().bit(dmaen));
     }
 
-    fn select_clock(&mut self, ckmode: AdcClockMode) {
-        let rcc = unsafe { &(*RCC::ptr()) };
-        ADC::reset(rcc);
+    fn select_clock(&mut self, ckmode: AdcClockMode, rcc: &mut Rcc) {
         ADC::enable(rcc);
+        ADC::reset(rcc);
         self.rb
             .cfgr2
             .modify(|_, w| w.ckmode().variant(ckmode.into()));

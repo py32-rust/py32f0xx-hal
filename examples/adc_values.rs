@@ -29,9 +29,9 @@ fn main() -> ! {
     let cp = cortex_m::peripheral::Peripherals::take().unwrap();
     cortex_m::interrupt::free(move |cs| {
         let mut flash = dp.FLASH;
-        let rcc = dp.RCC.configure().sysclk(24.MHz()).freeze(&mut flash);
+        let mut rcc = dp.RCC.configure().sysclk(24.MHz()).freeze(&mut flash);
 
-        let gpioa = dp.GPIOA.split();
+        let gpioa = dp.GPIOA.split(&mut rcc);
 
         let mut syst = cp.SYST;
 
@@ -52,10 +52,10 @@ fn main() -> ! {
         let _rx = gpioa.pa3.into_alternate_af1(); // don't need, can be removed
 
         // Initialise UART for transmission only
-        let mut tx = dp.USART1.tx(tx, 115_200.bps(), &rcc.clocks);
+        let mut tx = dp.USART1.tx(tx, 115_200.bps(), &mut rcc);
 
         // Initialise ADC
-        let adc = hal::adc::Adc::new(dp.ADC, hal::adc::AdcClockMode::default());
+        let adc = hal::adc::Adc::new(dp.ADC, hal::adc::AdcClockMode::default(), &mut rcc);
 
         let ain0 = gpioa.pa0.into_analog(); // ADC_IN0
         let ain1 = gpioa.pa1.into_analog(); // ADC_IN1

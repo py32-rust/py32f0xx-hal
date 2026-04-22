@@ -36,10 +36,10 @@ macro_rules! spi_dmarx {
 
         impl<SCKPIN, MISOPIN, MOSIPIN> Spi<$SPIi, SCKPIN, MISOPIN, MOSIPIN, u8> {
             /// Use SPI instance in master mode with DMA on [Ch]
-            pub fn with_rx_dma<DMA: DmaExt, const C: u8>(self, mut channel: Ch<DMA, C>) ->
+            pub fn with_rx_dma<DMA: DmaExt, const C: u8>(self, mut channel: Ch<DMA, C>, rcc: &mut Rcc) ->
                 SpiRxDma<$SPIi, SCKPIN, MISOPIN, MOSIPIN, Ch<DMA, C>> {
                 // turn on syscfg clock and set mux
-                unsafe { pac::SYSCFG::enable(&*pac::RCC::ptr()) };
+                pac::SYSCFG::enable(rcc);
                 channel.set_map($dmamux);
                 self.spi.cr2.modify(|_, w| w.rxdmaen().set_bit());
                 SpiRxDma {
@@ -50,10 +50,10 @@ macro_rules! spi_dmarx {
         }
         impl<SCKPIN, MISOPIN, MOSIPIN> SpiSlave<$SPIi, SCKPIN, MISOPIN, MOSIPIN, u8> {
             /// Use SPI instance in slave mode with DMA on [Ch]
-            pub fn with_rx_dma<DMA: DmaExt, const C: u8>(self, mut channel: Ch<DMA, C>) ->
+            pub fn with_rx_dma<DMA: DmaExt, const C: u8>(self, mut channel: Ch<DMA, C>, rcc: &mut Rcc) ->
                 SpiSlaveRxDma<$SPIi, SCKPIN, MISOPIN, MOSIPIN, Ch<DMA, C>> {
                 // turn on syscfg clock and set mux
-                unsafe { pac::SYSCFG::enable(&*pac::RCC::ptr()) };
+                    pac::SYSCFG::enable(rcc);
                 channel.set_map($dmamux);
                 self.spi.cr2.modify(|_, w| w.rxdmaen().set_bit());
                 SpiSlaveRxDma {
@@ -226,10 +226,10 @@ macro_rules! spi_dmatx {
 
         impl<SCKPIN, MISOPIN, MOSIPIN> Spi<$SPIi, SCKPIN, MISOPIN, MOSIPIN, u8> {
             /// Use SPI instance in master mode with DMA on [Ch]
-            pub fn with_tx_dma<DMA: DmaExt, const C: u8>(self, mut channel: Ch<DMA, C>) ->
+            pub fn with_tx_dma<DMA: DmaExt, const C: u8>(self, mut channel: Ch<DMA, C>, rcc: &mut Rcc) ->
                 SpiTxDma<$SPIi, SCKPIN, MISOPIN, MOSIPIN, Ch<DMA, C>> {
                 // turn on syscfg clock and set mux
-                unsafe { pac::SYSCFG::enable(&*pac::RCC::ptr()) };
+                pac::SYSCFG::enable(rcc);
                 channel.set_map($dmamux);
                 self.spi.cr2.modify(|_, w| w.txdmaen().set_bit());
                 SpiTxDma {
@@ -240,10 +240,10 @@ macro_rules! spi_dmatx {
         }
         impl<SCKPIN, MISOPIN, MOSIPIN> SpiSlave<$SPIi, SCKPIN, MISOPIN, MOSIPIN, u8> {
             /// Use SPI instance in slave mode with DMA on [Ch]
-            pub fn with_tx_dma<DMA: DmaExt, const C: u8>(self, mut channel: Ch<DMA, C>) ->
+            pub fn with_tx_dma<DMA: DmaExt, const C: u8>(self, mut channel: Ch<DMA, C>, rcc: &mut Rcc) ->
                 SpiSlaveTxDma<$SPIi, SCKPIN, MISOPIN, MOSIPIN, Ch<DMA, C>> {
                 // turn on syscfg clock and set mux
-                unsafe { pac::SYSCFG::enable(&*pac::RCC::ptr()) };
+                pac::SYSCFG::enable(rcc);
                 channel.set_map($dmamux);
                 self.spi.cr2.modify(|_, w| w.txdmaen().set_bit());
                 SpiSlaveTxDma {
@@ -419,9 +419,10 @@ macro_rules! spi_dmarxtx {
                 self,
                 mut rxchannel: Ch<DMA, CRX>,
                 mut txchannel: Ch<DMA, CTX>,
+                rcc: &mut Rcc,
             ) -> SpiRxTxDma<$SPIi, SCKPIN, MISOPIN, MOSIPIN, Ch<DMA, CRX>, Ch<DMA, CTX>> {
                 // turn on syscfg clock and set mux
-                unsafe { pac::SYSCFG::enable(&*pac::RCC::ptr()) };
+                pac::SYSCFG::enable(rcc);
                 rxchannel.set_map($dmarxmux);
                 txchannel.set_map($dmatxmux);
                 self.spi.cr2.modify(|_, w| {
@@ -441,9 +442,10 @@ macro_rules! spi_dmarxtx {
                 self,
                 mut rxchannel: Ch<DMA, CRX>,
                 mut txchannel: Ch<DMA, CTX>,
+                rcc: &mut Rcc,
             ) -> SpiSlaveRxTxDma<$SPIi, SCKPIN, MISOPIN, MOSIPIN, Ch<DMA, CRX>, Ch<DMA, CTX>> {
                 // turn on syscfg clock and set mux
-                unsafe { pac::SYSCFG::enable(&*pac::RCC::ptr()) };
+                pac::SYSCFG::enable(rcc);
                 rxchannel.set_map($dmarxmux);
                 txchannel.set_map($dmatxmux);
                 self.spi.cr2.modify(|_, w| {

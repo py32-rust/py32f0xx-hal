@@ -3,7 +3,7 @@
 //! To enable this monotonic timer implementation, use the feature `rtic`
 
 use super::{FTimer, Instance};
-use crate::rcc::Clocks;
+use crate::rcc::Rcc;
 use core::ops::{Deref, DerefMut};
 use rtic_monotonic::Monotonic;
 
@@ -41,18 +41,18 @@ impl<TIM: Instance, const FREQ: u32> MonoTimer<TIM, FREQ> {
 /// Extension trait for Timer peripheral
 pub trait MonoTimerExt: Sized {
     /// Make a [MonoTimer] instance
-    fn monotonic<const FREQ: u32>(self, clocks: &Clocks) -> MonoTimer<Self, FREQ>;
+    fn monotonic<const FREQ: u32>(self, rcc: &mut Rcc) -> MonoTimer<Self, FREQ>;
     /// Make a [MonoTimer] instance running at 1 μs
-    fn monotonic_us(self, clocks: &Clocks) -> MonoTimer<Self, 1_000_000> {
-        self.monotonic::<1_000_000>(clocks)
+    fn monotonic_us(self, rcc: &mut Rcc) -> MonoTimer<Self, 1_000_000> {
+        self.monotonic::<1_000_000>(rcc)
     }
 }
 
 macro_rules! mono {
     ($TIM:ty) => {
         impl MonoTimerExt for $TIM {
-            fn monotonic<const FREQ: u32>(self, clocks: &Clocks) -> MonoTimer<Self, FREQ> {
-                FTimer::new(self, clocks).monotonic()
+            fn monotonic<const FREQ: u32>(self, rcc: &mut Rcc) -> MonoTimer<Self, FREQ> {
+                FTimer::new(self, rcc).monotonic()
             }
         }
 

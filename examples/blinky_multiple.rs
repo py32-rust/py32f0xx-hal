@@ -15,10 +15,10 @@ use embedded_hal_02::blocking::delay::DelayMs;
 fn main() -> ! {
     let mut p = pac::Peripherals::take().unwrap();
     let cp = Peripherals::take().unwrap();
-    let rcc = p.RCC.configure().freeze(&mut p.FLASH);
+    let mut rcc = p.RCC.configure().freeze(&mut p.FLASH);
 
-    let gpioa = p.GPIOA.split();
-    let gpiob = p.GPIOB.split();
+    let gpioa = p.GPIOA.split(&mut rcc);
+    let gpiob = p.GPIOB.split(&mut rcc);
 
     // (Re-)configure PA5 as output
     let led1 = gpioa.pa5.into_push_pull_output();
@@ -26,7 +26,7 @@ fn main() -> ! {
     let led2 = gpiob.pb1.into_push_pull_output();
 
     // Get delay provider
-    let mut delay = cp.SYST.delay(&rcc.clocks);
+    let mut delay = cp.SYST.delay(&mut rcc);
 
     // Store them together after erasing the type
     let mut leds = [led1.erase(), led2.erase()];

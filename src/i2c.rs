@@ -175,18 +175,17 @@ impl<I2C, SCLPIN, SDAPIN, MODE> I2c<I2C, SCLPIN, SDAPIN, MODE>
 where
     I2C: Instance,
 {
+
     /// Create an instance of I2C peripheral
     pub fn new(i2c: I2C, pins: (SCLPIN, SDAPIN), speed: KiloHertz, rcc: &mut Rcc) -> Self
     where
         SCLPIN: SclPin<I2C>,
         SDAPIN: SdaPin<I2C>,
     {
-        let rcc_regs = Rcc::deref(rcc);
         // Enable clock for I2C
-        I2C::enable(rcc_regs);
-
+        I2C::enable(rcc);
         // Reset I2C
-        I2C::reset(rcc_regs);
+        I2C::reset(rcc);
         I2c {
             i2c,
             pins,

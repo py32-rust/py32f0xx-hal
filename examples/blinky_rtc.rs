@@ -19,7 +19,7 @@ fn main() -> ! {
     let mut rcc = dp.RCC.configure().freeze(&mut dp.FLASH);
 
     // Set up the GPIO pin
-    let gpioa = dp.GPIOA.split();
+    let gpioa = dp.GPIOA.split(&mut rcc);
     let mut led = gpioa.pa12.into_push_pull_output();
 
     // Set up the RTC

@@ -35,11 +35,11 @@ fn main() -> ! {
     let cp = cortex_m::Peripherals::take().unwrap();
 
     let mut flash = p.FLASH;
-    let rcc = p.RCC.configure().freeze(&mut flash);
+    let mut rcc = p.RCC.configure().freeze(&mut flash);
 
-    let mut delay = cp.SYST.delay(&rcc.clocks);
+    let mut delay = cp.SYST.delay(&mut rcc);
 
-    let gpioa = p.GPIOA.split();
+    let gpioa = p.GPIOA.split(&mut rcc);
 
     let (sck, miso, mosi, nss, mut rst) = (
         // SPI pins
@@ -57,7 +57,7 @@ fn main() -> ! {
         (Some(sck), Some(miso), Some(mosi)),
         MODE,
         1.MHz(),
-        &rcc.clocks,
+        &mut rcc,
     );
     let itf = SpiInterface::new(spi).with_nss(nss).with_delay(|| {
         delay.delay_ms(1_u16);
@@ -70,7 +70,7 @@ fn main() -> ! {
     info!("MFRC522 version: 0x{:02x}", ver);
     assert!(ver == 0x91 || ver == 0x92);
 
-    let mut timer = p.TIM1.counter_hz(&rcc.clocks);
+    let mut timer = p.TIM1.counter_hz(&mut rcc);
     timer.start(1.Hz()).unwrap();
 
     loop {

@@ -10,16 +10,12 @@ macro_rules! bus {
             }
             impl Enable for crate::pac::$PER {
                 #[inline(always)]
-                fn enable(rcc: &rcc::RegisterBlock) {
-                    unsafe {
-                        rcc.$enr.modify(|r,w| w.bits(r.bits() | (1 << $bit)));
-                    }
+                fn enable(rcc: &mut Rcc) {
+                    rcc.regs.$enr.modify(|r,w| unsafe { w.bits(r.bits() | (1 << $bit)) });
                 }
                 #[inline(always)]
-                fn disable(rcc: &rcc::RegisterBlock) {
-                    unsafe {
-                        rcc.$enr.modify(|r,w| w.bits(r.bits() & !(1 << $bit)));
-                    }
+                fn disable(rcc: &mut Rcc) {
+                    rcc.regs.$enr.modify(|r,w| unsafe { w.bits(r.bits() & !(1 << $bit)) });
                 }
             }
         )+
@@ -29,10 +25,10 @@ macro_rules! bus {
             bus!($PER => ($apbX, $enr, $bit),);
             impl Reset for crate::pac::$PER {
                 #[inline(always)]
-                fn reset(rcc: &rcc::RegisterBlock) {
+                fn reset(rcc: &mut Rcc) {
                     unsafe {
-                        rcc.$rstr.modify(|r,w| w.bits(r.bits() | (1 << $bit)));
-                        rcc.$rstr.modify(|r,w| w.bits(r.bits() & !(1 << $bit)));
+                        rcc.regs.$rstr.modify(|r,w| w.bits(r.bits() | (1 << $bit)));
+                        rcc.regs.$rstr.modify(|r,w| w.bits(r.bits() & !(1 << $bit)));
                     }
                 }
             }

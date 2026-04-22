@@ -71,7 +71,7 @@ impl Rtc<RtcClkLse> {
         };
 
         // Enable the peripheral
-        Self::enable_apb_and_dbp(&mut rcc.regs, pwr);
+        Self::enable_apb_and_dbp(rcc, pwr);
         // Initializes the RTC device with the LSE as the clock
         rcc.regs.bdcr.modify(|_, w| {
             // start the LSE oscillator
@@ -105,7 +105,7 @@ impl Rtc<RtcClkLse> {
     /// ```
     pub fn restore_or_new(regs: RTC, rcc: &mut Rcc, pwr: &mut PWR) -> RestoredOrNewRtc<RtcClkLse> {
         if Self::is_enabled(&rcc.regs) {
-            Self::enable_apb_and_dbp(&mut rcc.regs, pwr);
+            Self::enable_apb_and_dbp(rcc, pwr);
             RestoredOrNewRtc::Restored(Rtc {
                 regs,
                 _clock_source: PhantomData,
@@ -150,7 +150,7 @@ impl Rtc<RtcClkLsi> {
             _clock_source: PhantomData,
         };
         // Enable the peripheral
-        Self::enable_apb_and_dbp(&mut rcc.regs, pwr);
+        Self::enable_apb_and_dbp(rcc, pwr);
         // Initializes the RTC device with the lsi as the clock
         Self::enable_lsi(&mut rcc.regs);
         rcc.regs.bdcr.modify(|_, w| {
@@ -175,7 +175,7 @@ impl Rtc<RtcClkLsi> {
         pwr: &mut PWR,
     ) -> RestoredOrNewRtc<RtcClkLsi> {
         if Self::is_enabled(&rcc.regs) {
-            Self::enable_apb_and_dbp(&mut rcc.regs, pwr);
+            Self::enable_apb_and_dbp(rcc, pwr);
             Self::enable_lsi(&mut rcc.regs);
             RestoredOrNewRtc::Restored(Rtc {
                 regs,
@@ -232,7 +232,7 @@ impl Rtc<RtcClkHseDiv128> {
         };
 
         // Enable the peripheral
-        Self::enable_apb_and_dbp(&mut rcc.regs, pwr);
+        Self::enable_apb_and_dbp(rcc, pwr);
         // Initializes the RTC device with the hse as the clock
         if rcc.regs.cr.read().hserdy().bit_is_clear() {
             panic!("HSE oscillator not ready");
@@ -260,7 +260,7 @@ impl Rtc<RtcClkHseDiv128> {
         hse: Hertz,
     ) -> RestoredOrNewRtc<RtcClkHseDiv128> {
         if Self::is_enabled(&rcc.regs) {
-            Self::enable_apb_and_dbp(&mut rcc.regs, pwr);
+            Self::enable_apb_and_dbp(rcc, pwr);
             RestoredOrNewRtc::Restored(Rtc {
                 regs,
                 _clock_source: PhantomData,
@@ -288,7 +288,7 @@ impl Rtc<RtcClkHseDiv128> {
 }
 
 impl<CS> Rtc<CS> {
-    fn enable_apb_and_dbp(rcc: &mut RCC, pwr: &mut PWR) {
+    fn enable_apb_and_dbp(rcc: &mut Rcc, pwr: &mut PWR) {
         PWR::enable(rcc);
         RTC::enable(rcc);
 

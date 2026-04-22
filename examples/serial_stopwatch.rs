@@ -58,15 +58,15 @@ fn main() -> ! {
     let cp = c_m_Peripherals::take().unwrap();
 
     let mut flash = p.FLASH;
-    let rcc = p.RCC.configure().sysclk(24.MHz()).freeze(&mut flash);
+    let mut rcc = p.RCC.configure().sysclk(24.MHz()).freeze(&mut flash);
 
     // Use USART1 with PA2 and PA3 as serial port
-    let gpioa = p.GPIOA.split();
+    let gpioa = p.GPIOA.split(&mut rcc);
     let tx = gpioa.pa2.into_alternate_af1();
     let rx = gpioa.pa3.into_alternate_af1();
 
     // Set up a timer expiring every millisecond
-    let mut timer = p.TIM16.counter_ms(&rcc.clocks);
+    let mut timer = p.TIM16.counter_ms(&mut rcc);
 
     // Generate an interrupt when the timer expires
     timer.listen(Event::Update);
@@ -86,7 +86,7 @@ fn main() -> ! {
     cortex_m::peripheral::NVIC::unpend(Interrupt::TIM16);
 
     // Set up our serial port
-    let mut serial = p.USART1.serial((tx, rx), 115_200.bps(), &rcc.clocks);
+    let mut serial = p.USART1.serial((tx, rx), 115_200.bps(), &mut rcc);
 
     // Print a welcome message
     writeln!(

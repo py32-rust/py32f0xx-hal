@@ -20,7 +20,7 @@ fn main() -> ! {
     let mut flash = p.FLASH;
     let mut rcc = p.RCC.configure().sysclk(24.MHz()).freeze(&mut flash);
 
-    let gpioa = p.GPIOA.split();
+    let gpioa = p.GPIOA.split(&mut rcc);
     let dbg = p.DBG;
 
     // Disable the watchdog when the cpu is stopped under debug
@@ -29,13 +29,13 @@ fn main() -> ! {
     let mut watchdog = watchdog::Watchdog::new(&mut rcc, p.IWDG);
 
     // Get delay provider
-    let mut delay = cp.SYST.delay(&rcc.clocks);
+    let mut delay = cp.SYST.delay(&mut rcc);
 
     // Configure serial TX pin
     let tx = gpioa.pa2.into_alternate_af1();
 
     // Obtain a serial peripheral with unidirectional communication
-    let mut serial = p.USART1.tx(tx, 115_200.bps(), &rcc.clocks);
+    let mut serial = p.USART1.tx(tx, 115_200.bps(), &mut rcc);
 
     serial.write_str("RESET \r\n").ok();
 

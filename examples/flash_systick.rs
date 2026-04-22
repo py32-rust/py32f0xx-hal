@@ -23,9 +23,9 @@ static GPIO: Mutex<RefCell<Option<gpioa::PA5<Output<PushPull>>>>> = Mutex::new(R
 fn main() -> ! {
     let mut p = pac::Peripherals::take().unwrap();
     let cp = Peripherals::take().unwrap();
-    let _rcc = p.RCC.configure().sysclk(24.MHz()).freeze(&mut p.FLASH);
+    let mut rcc = p.RCC.configure().sysclk(24.MHz()).freeze(&mut p.FLASH);
 
-    let gpioa = p.GPIOA.split();
+    let gpioa = p.GPIOA.split(&mut rcc);
 
     // (Re-)configure PA5 as output
     let led = gpioa.pa5.into_push_pull_output();

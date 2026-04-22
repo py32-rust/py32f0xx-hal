@@ -1,6 +1,5 @@
 //! System Clocks setup and configuration
 
-use crate::pac::rcc;
 use crate::pac::rcc::{
     cfgr::{MCOPRE_A, MCOSEL_A},
     cr::HSIDIV_A,
@@ -9,6 +8,7 @@ use crate::pac::rcc::{
 
 use crate::pac::{DBG, RCC};
 use crate::time::{Hertz, Hz};
+use core::ops::Deref;
 
 mod enable;
 
@@ -59,7 +59,7 @@ impl Rcc {
     }
 }
 
-impl core::ops::Deref for Rcc {
+impl Deref for Rcc {
     type Target = RCC;
 
     fn deref(&self) -> &Self::Target {
@@ -67,12 +67,12 @@ impl core::ops::Deref for Rcc {
     }
 }
 
-impl core::ops::DerefMut for Rcc {
+// impl core::ops::DerefMut for Rcc {
 
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.regs
-    }
-}
+//     fn deref_mut(&mut self) -> &mut Self::Target {
+//         &mut self.regs
+//     }
+// }
 
 /// AMBA High-performance Bus (AHB) registers
 #[non_exhaustive]
@@ -419,14 +419,14 @@ pub trait RccBus: crate::Sealed {
 /// Enable/disable peripheral clock
 pub trait Enable: RccBus {
     /// Enable the peripheral clock
-    fn enable(rcc: &rcc::RegisterBlock);
+    fn enable(rcc: &mut Rcc);
     /// Disable the peripheral clock
-    fn disable(rcc: &rcc::RegisterBlock);
+    fn disable(rcc: &mut Rcc);
 }
 /// Reset peripheral
 pub trait Reset: RccBus {
     /// Reset the peripheral
-    fn reset(rcc: &rcc::RegisterBlock);
+    fn reset(rcc: &mut Rcc);
 }
 
 /// Frozen clock frequencies

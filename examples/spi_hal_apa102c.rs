@@ -22,9 +22,9 @@ fn main() -> ! {
 
     let p = pac::Peripherals::take().unwrap();
     let mut flash = p.FLASH;
-    let rcc = p.RCC.configure().freeze(&mut flash);
+    let mut rcc = p.RCC.configure().freeze(&mut flash);
 
-    let gpioa = p.GPIOA.split();
+    let gpioa = p.GPIOA.split(&mut rcc);
 
     // Configure pins for SPI
     let (sck, miso, mosi) = (
@@ -38,7 +38,7 @@ fn main() -> ! {
         (Some(sck), Some(miso), Some(mosi)),
         MODE,
         100_000.Hz(),
-        &rcc.clocks,
+        &mut rcc,
     );
 
     // Cycle through colors on 16 chained APA102C LEDs

@@ -55,14 +55,14 @@ fn main() -> ! {
     let mut p = Peripherals::take().unwrap();
     let cp = c_m_Peripherals::take().unwrap();
     cortex_m::interrupt::free(move |cs| {
-        let rcc = p
+        let mut rcc = p
             .RCC
             .configure()
             .sysclk(24.MHz())
             .pclk(24.MHz())
             .freeze(&mut p.FLASH);
 
-        let gpioa = p.GPIOA.split();
+        let gpioa = p.GPIOA.split(&mut rcc);
 
         // (Re-)configure PA5 as output
         let led = gpioa.pa5.into_push_pull_output();
@@ -71,7 +71,7 @@ fn main() -> ! {
         *GLED.borrow(cs).borrow_mut() = Some(led);
 
         // Set up a timer expiring after 1s
-        let mut timer = p.TIM16.counter_hz(&rcc.clocks);
+        let mut timer = p.TIM16.counter_hz(&mut rcc);
 
         // Generate an interrupt when the timer expires
         timer.listen(Event::Update);

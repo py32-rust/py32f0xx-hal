@@ -20,7 +20,7 @@ use embedded_hal_02::serial::{Read, Write as OtherWrite};
 fn main() -> ! {
     let p = pac::Peripherals::take().unwrap();
     let mut flash = p.FLASH;
-    let rcc = p
+    let mut rcc = p
         .RCC
         .configure()
         .hsi(HSIFreq::Freq24mhz)
@@ -28,14 +28,14 @@ fn main() -> ! {
         .freeze(&mut flash);
     rcc.configure_mco(MCOSrc::Sysclk, MCODiv::NotDivided);
 
-    let gpioa = p.GPIOA.split();
+    let gpioa = p.GPIOA.split(&mut rcc);
 
     let (tx, rx) = (
         gpioa.pa2.into_alternate_af1(),
         gpioa.pa3.into_alternate_af1(),
     );
 
-    let mut serial = p.USART1.serial((tx, rx), 115_200.bps(), &rcc.clocks);
+    let mut serial = p.USART1.serial((tx, rx), 115_200.bps(), &mut rcc);
     serial.write_str("Input any key:\r\n").ok();
 
     loop {

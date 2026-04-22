@@ -30,7 +30,7 @@
 //! let mut spi = p.SPI1.spi((Some(sck), Some(miso), Some(mosi)), Mode {
 //!     polarity: Polarity::IdleHigh,
 //!     phase: Phase::CaptureOnSecondTransition,
-//! }, 1.mhz(), &rcc.clocks);
+//! }, 1.mhz(), &mut rcc);
 //!
 //! let mut data = [0];
 //! let result = [0];
@@ -47,13 +47,9 @@ use core::ptr;
 use core::sync::atomic::{self, Ordering};
 #[cfg(feature = "with-dma")]
 use embedded_dma::{ReadBuffer, WriteBuffer};
-
-use crate::pac::{self, RCC};
-
+use crate::pac;
 use crate::gpio::*;
-
-use crate::rcc::{BusClock, Clocks, Enable, Reset};
-
+use crate::rcc::{Rcc, BusClock, Enable, Reset};
 use crate::time::Hertz;
 
 #[cfg(feature = "with-dma")]
@@ -126,7 +122,7 @@ pub trait SpiExt: Sized + Instance {
         pins: (Option<SCKPIN>, Option<MISOPIN>, Option<MOSIPIN>),
         mode: Mode,
         freq: Hertz,
-        clocks: &Clocks,
+        rcc: &mut Rcc,
     ) -> Spi<Self, SCKPIN, MISOPIN, MOSIPIN, u8>
     where
         SCKPIN: SckPin<Self>,
@@ -138,20 +134,21 @@ pub trait SpiExt: Sized + Instance {
         pins: (Option<SCKPIN>, Option<MISOPIN>, Option<MOSIPIN>),
         mode: Mode,
         freq: Hertz,
-        clocks: &Clocks,
+        rcc: &mut Rcc,
     ) -> Spi<Self, SCKPIN, MISOPIN, MOSIPIN, u16>
     where
         SCKPIN: SckPin<Self>,
         MISOPIN: MisoPin<Self>,
         MOSIPIN: MosiPin<Self>,
     {
-        Self::spi(self, pins, mode, freq, clocks).frame_size_16bit()
+        Self::spi(self, pins, mode, freq, rcc).frame_size_16bit()
     }
     /// Use SPI in slave mode with 8 bit words
     fn spi_slave<SCKPIN, MISOPIN, MOSIPIN>(
         self,
         pins: (Option<SCKPIN>, Option<MISOPIN>, Option<MOSIPIN>),
         mode: Mode,
+        rcc: &mut Rcc,
     ) -> SpiSlave<Self, SCKPIN, MISOPIN, MOSIPIN, u8>
     where
         SCKPIN: SckPin<Self>,
@@ -162,13 +159,14 @@ pub trait SpiExt: Sized + Instance {
         self,
         pins: (Option<SCKPIN>, Option<MISOPIN>, Option<MOSIPIN>),
         mode: Mode,
+        rcc: &mut Rcc,
     ) -> SpiSlave<Self, SCKPIN, MISOPIN, MOSIPIN, u16>
     where
         SCKPIN: SckPin<Self>,
         MISOPIN: MisoPin<Self>,
         MOSIPIN: MosiPin<Self>,
     {
-        Self::spi_slave(self, pins, mode).frame_size_16bit()
+        Self::spi_slave(self, pins, mode, rcc).frame_size_16bit()
     }
 }
 
@@ -178,26 +176,27 @@ impl<SPI: Instance> SpiExt for SPI {
         pins: (Option<SCKPIN>, Option<MISOPIN>, Option<MOSIPIN>),
         mode: Mode,
         freq: Hertz,
-        clocks: &Clocks,
+        rcc: &mut Rcc,
     ) -> Spi<Self, SCKPIN, MISOPIN, MOSIPIN, u8>
     where
         SCKPIN: SckPin<SPI>,
         MISOPIN: MisoPin<SPI>,
         MOSIPIN: MosiPin<SPI>,
     {
-        Spi::new(self, pins, mode, freq, clocks)
+        Spi::new(self, pins, mode, freq, rcc)
     }
     fn spi_slave<SCKPIN, MISOPIN, MOSIPIN>(
         self,
         pins: (Option<SCKPIN>, Option<MISOPIN>, Option<MOSIPIN>),
         mode: Mode,
+        rcc: &mut Rcc,
     ) -> SpiSlave<Self, SCKPIN, MISOPIN, MOSIPIN, u8>
     where
         SCKPIN: SckPin<SPI>,
         MISOPIN: MisoPin<SPI>,
         MOSIPIN: MosiPin<SPI>,
     {
-        SpiSlave::new(self, pins, mode)
+        SpiSlave::new(self, pins, mode, rcc)
     }
 }
 
@@ -393,7 +392,7 @@ impl<SPI: Instance, SCKPIN, MISOPIN, MOSIPIN, WIDTH: Copy>
         pins: (Option<SCKPIN>, Option<MISOPIN>, Option<MOSIPIN>),
         mode: Mode,
         speed: F,
-        clocks: &Clocks,
+        rcc: &mut Rcc,
     ) -> Self
     where
         SCKPIN: SckPin<SPI>,
@@ -401,7 +400,7 @@ impl<SPI: Instance, SCKPIN, MISOPIN, MOSIPIN, WIDTH: Copy>
         MOSIPIN: MosiPin<SPI>,
         F: Into<Hertz>,
     {
-        Self::_new(spi, pins, mode, speed, clocks)
+        Self::_new(spi, pins, mode, speed, rcc)
     }
 
     fn _new<F: Into<Hertz>>(
@@ -409,10 +408,9 @@ impl<SPI: Instance, SCKPIN, MISOPIN, MOSIPIN, WIDTH: Copy>
         pins: (Option<SCKPIN>, Option<MISOPIN>, Option<MOSIPIN>),
         mode: Mode,
         speed: F,
-        clocks: &Clocks,
+        rcc: &mut Rcc,
     ) -> Self {
         /* Enable clock for SPI */
-        let rcc = unsafe { &(*RCC::ptr()) };
         SPI::enable(rcc);
         /* Reset SPI */
         SPI::reset(rcc);
@@ -420,7 +418,7 @@ impl<SPI: Instance, SCKPIN, MISOPIN, MOSIPIN, WIDTH: Copy>
         /* Make sure the SPI unit is disabled so we can configure it */
         spi.cr1.modify(|_, w| w.spe().clear_bit());
 
-        let br = match clocks.pclk().raw() / speed.into().raw() {
+        let br = match rcc.clocks.pclk().raw() / speed.into().raw() {
             0 => unreachable!(),
             1..=2 => 0b000,
             3..=5 => 0b001,
@@ -473,22 +471,23 @@ impl<SPI: Instance, SCKPIN, MISOPIN, MOSIPIN, WIDTH: Copy>
         spi: SPI,
         pins: (Option<SCKPIN>, Option<MISOPIN>, Option<MOSIPIN>),
         mode: Mode,
+        rcc: &mut Rcc,
     ) -> Self
     where
         SCKPIN: SckPin<SPI>,
         MISOPIN: MisoPin<SPI>,
         MOSIPIN: MosiPin<SPI>,
     {
-        Self::_new(spi, pins, mode)
+        Self::_new(spi, pins, mode, rcc)
     }
 
     fn _new(
         spi: SPI,
         pins: (Option<SCKPIN>, Option<MISOPIN>, Option<MOSIPIN>),
         mode: Mode,
+        rcc: &mut Rcc,
     ) -> Self {
         // enable and reset SPI
-        let rcc = unsafe { &(*RCC::ptr()) };
         SPI::enable(rcc);
         SPI::reset(rcc);
 

@@ -24,7 +24,7 @@ fn main() -> ! {
         .pclk(24.MHz())
         .freeze(&mut flash);
 
-    let gpioa = p.GPIOA.split();
+    let gpioa = p.GPIOA.split(&mut rcc);
 
     // Configure pins for I2C
     let scl = gpioa.pa3.into_alternate_af12();

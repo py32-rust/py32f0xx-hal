@@ -23,7 +23,7 @@
 //! let rx = gpiob.pb7.into_alternate_af0();
 //!
 //! // Create an interface struct for USART1 with 115200 Baud
-//! let mut serial = p.USART1.serial((tx, rx), 115_200.bps(), &rcc.clocks);
+//! let mut serial = p.USART1.serial((tx, rx), 115_200.bps(), &mut rcc);
 //!
 //! loop {
 //!     let received = block!(serial.read()).unwrap();
@@ -47,7 +47,7 @@
 //!
 //! let tx = gpiob.pb6.into_alternate_af0();
 //!
-//! let mut serial = p.USART1.tx(tx, 115_200.bps(), &rcc.clocks);
+//! let mut serial = p.USART1.tx(tx, 115_200.bps(), &mut rcc);
 //!
 //! loop {
 //!     serial.write_str("Hello World!\r\n");
@@ -64,8 +64,8 @@ use crate::dma::{
 };
 use crate::gpio::{gpioa::*, gpiob::*};
 use crate::gpio::{Alternate, AF1};
-use crate::pac::{self, RCC};
-use crate::rcc::{BusClock, Clocks, Enable, Reset};
+use crate::pac;
+use crate::rcc::{Rcc, BusClock, Clocks, Enable, Reset};
 use crate::time::{Bps, U32Ext};
 #[cfg(feature = "with-dma")]
 use core::sync::atomic::{self, Ordering};
@@ -195,12 +195,12 @@ pub trait SerialExt: Sized + Instance {
         self,
         pins: (TXPIN, RXPIN),
         config: impl Into<Config>,
-        clocks: &Clocks,
+        rcc: &mut Rcc,
     ) -> Serial<Self, TXPIN, RXPIN>;
     /// Initialize a [Tx]-only Serial
-    fn tx<TXPIN>(self, tx_pin: TXPIN, config: impl Into<Config>, clocks: &Clocks) -> Tx<Self>;
+    fn tx<TXPIN>(self, tx_pin: TXPIN, config: impl Into<Config>, rcc: &mut Rcc) -> Tx<Self>;
     /// Initialize a [Rx]-only Serial
-    fn rx<RXPIN>(self, rx_pin: RXPIN, config: impl Into<Config>, clocks: &Clocks) -> Rx<Self>;
+    fn rx<RXPIN>(self, rx_pin: RXPIN, config: impl Into<Config>, rcc: &mut Rcc) -> Rx<Self>;
 }
 
 impl<USART: Instance> SerialExt for USART {
@@ -208,15 +208,15 @@ impl<USART: Instance> SerialExt for USART {
         self,
         pins: (TXPIN, RXPIN),
         config: impl Into<Config>,
-        clocks: &Clocks,
+        rcc: &mut Rcc,
     ) -> Serial<Self, TXPIN, RXPIN> {
-        Serial::new(self, pins, config, clocks)
+        Serial::new(self, pins, config, rcc)
     }
-    fn tx<TXPIN>(self, tx_pin: TXPIN, config: impl Into<Config>, clocks: &Clocks) -> Tx<Self> {
-        Serial::_new(self, (tx_pin, ()), config, clocks).split().0
+    fn tx<TXPIN>(self, tx_pin: TXPIN, config: impl Into<Config>, rcc: &mut Rcc) -> Tx<Self> {
+        Serial::_new(self, (tx_pin, ()), config, rcc).split().0
     }
-    fn rx<RXPIN>(self, rx_pin: RXPIN, config: impl Into<Config>, clocks: &Clocks) -> Rx<Self> {
-        Serial::_new(self, ((), rx_pin), config, clocks).split().1
+    fn rx<RXPIN>(self, rx_pin: RXPIN, config: impl Into<Config>, rcc: &mut Rcc) -> Rx<Self> {
+        Serial::_new(self, ((), rx_pin), config, rcc).split().1
     }
 }
 
@@ -431,9 +431,9 @@ impl<USART: Instance, TXPIN> Serial<USART, TXPIN, ()> {
         usart: USART,
         tx_pin: TXPIN,
         config: impl Into<Config>,
-        clocks: &Clocks,
+        rcc: &mut Rcc,
     ) -> Tx<USART> {
-        Self::_new(usart, (tx_pin, ()), config, clocks).split().0
+        Self::_new(usart, (tx_pin, ()), config, rcc).split().0
     }
 }
 
@@ -443,9 +443,9 @@ impl<USART: Instance, RXPIN> Serial<USART, (), RXPIN> {
         usart: USART,
         rx_pin: RXPIN,
         config: impl Into<Config>,
-        clocks: &Clocks,
+        rcc: &mut Rcc,
     ) -> Rx<USART> {
-        Self::_new(usart, ((), rx_pin), config, clocks).split().1
+        Self::_new(usart, ((), rx_pin), config, rcc).split().1
     }
 }
 
@@ -465,23 +465,22 @@ impl<USART: Instance, TXPIN, RXPIN> Serial<USART, TXPIN, RXPIN> {
         usart: USART,
         pins: (TXPIN, RXPIN),
         config: impl Into<Config>,
-        clocks: &Clocks,
+        rcc: &mut Rcc,
     ) -> Self {
-        Self::_new(usart, (pins.0, pins.1), config, clocks)
+        Self::_new(usart, (pins.0, pins.1), config, rcc)
     }
 
     fn _new(
         usart: USART,
         pins: (TXPIN, RXPIN),
         config: impl Into<Config>,
-        clocks: &Clocks,
+        rcc: &mut Rcc,
     ) -> Self {
         // Enable and reset USART
-        let rcc = unsafe { &(*RCC::ptr()) };
         USART::enable(rcc);
         USART::reset(rcc);
 
-        apply_config::<USART>(config.into(), clocks);
+        apply_config::<USART>(config.into(), &rcc.clocks);
 
         let pins = (pins.0, pins.1);
 
@@ -851,10 +850,11 @@ macro_rules! serialdmarx {
             pub fn with_dma<DMA: DmaExt, const C: u8>(
                 self,
                 mut channel: Ch<DMA, C>,
+                rcc: &mut Rcc,
             ) -> RxDma<Rx<$USARTX>, Ch<DMA, C>> {
                 unsafe {
                     // turn on syscfg clock and set mux
-                    pac::SYSCFG::enable(&*pac::RCC::ptr());
+                    pac::SYSCFG::enable(rcc);
                     channel.set_map($dmamux);
                     (*<$USARTX>::ptr()).cr3.modify(|_, w| w.dmar().set_bit());
                 }
@@ -993,10 +993,11 @@ macro_rules! serialdmatx {
             pub fn with_dma<DMA: DmaExt, const C: u8>(
                 self,
                 mut channel: Ch<DMA, C>,
+                rcc: &mut Rcc,
             ) -> TxDma<Tx<$USARTX>, Ch<DMA, C>> {
                 unsafe {
                     // turn on syscfg clock and set mux
-                    pac::SYSCFG::enable(&*pac::RCC::ptr());
+                    pac::SYSCFG::enable(rcc);
                     channel.set_map($dmamux);
                     (*<$USARTX>::ptr()).cr3.modify(|_, w| w.dmat().set_bit());
                 }

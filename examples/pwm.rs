@@ -15,15 +15,15 @@ use hal::{pac, prelude::*};
 fn main() -> ! {
     let mut dp = pac::Peripherals::take().unwrap();
     // Set up the system clock.
-    let rcc = dp.RCC.configure().sysclk(24.MHz()).freeze(&mut dp.FLASH);
+    let mut rcc = dp.RCC.configure().sysclk(24.MHz()).freeze(&mut dp.FLASH);
 
-    let gpioa = dp.GPIOA.split();
+    let gpioa = dp.GPIOA.split(&mut rcc);
     let channels = (
         gpioa.pa8.into_alternate_af2(), // on TIM1_CH1
         gpioa.pa9.into_alternate_af2(), // on TIM1_CH2
     );
 
-    let mut pwm = dp.TIM1.pwm_hz(channels, 20.kHz(), &rcc.clocks);
+    let mut pwm = dp.TIM1.pwm_hz(channels, 20.kHz(), &mut rcc);
     let (ref mut ch1, ref mut ch2) = pwm.channels();
     let max_duty = ch1.get_max_duty();
     ch1.set_duty(max_duty / 4);

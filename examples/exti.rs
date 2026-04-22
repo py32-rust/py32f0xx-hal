@@ -43,11 +43,11 @@ fn main() -> ! {
     // initialization phase
     let mut p = pac::Peripherals::take().unwrap();
     let _cp = cortex_m::peripheral::Peripherals::take().unwrap();
-    let _rcc = p.RCC.configure().freeze(&mut p.FLASH);
+    let mut rcc = p.RCC.configure().freeze(&mut p.FLASH);
     {
         // the scope ensures that the int_pin reference is dropped before the first ISR can be executed.
 
-        let gpioa = p.GPIOA.split();
+        let gpioa = p.GPIOA.split(&mut rcc);
 
         #[allow(static_mut_refs)]
         let led = unsafe { &mut *LED.as_mut_ptr() };

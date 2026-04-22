@@ -31,9 +31,9 @@ fn main() -> ! {
 
     let p = pac::Peripherals::take().unwrap();
     let mut flash = p.FLASH;
-    let rcc = p.RCC.configure().freeze(&mut flash);
+    let mut rcc = p.RCC.configure().freeze(&mut flash);
 
-    let gpioa = p.GPIOA.split();
+    let gpioa = p.GPIOA.split(&mut rcc);
 
     let (sck, miso, mosi, tx, rx) = (
         // SPI pins
@@ -50,10 +50,10 @@ fn main() -> ! {
         (Some(sck), Some(miso), Some(mosi)),
         MODE,
         1.MHz(),
-        &rcc.clocks,
+        &mut rcc,
     );
 
-    let mut serial = p.USART1.serial((tx, rx), 115_200.bps(), &rcc.clocks);
+    let mut serial = p.USART1.serial((tx, rx), 115_200.bps(), &mut rcc);
 
     let mut datatx = [0];
     let datarx = [0];

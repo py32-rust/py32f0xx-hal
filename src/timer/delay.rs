@@ -5,7 +5,7 @@
 //! implement delay timers
 //!
 //! ```
-//! let mut delay = p.TIM16.delay_us(&rcc.clocks);
+//! let mut delay = p.TIM16.delay_us(&mut rcc);
 //! loop {
 //!     // ... do something here
 //!     delay.delay(10.micros());
@@ -15,7 +15,7 @@
 //! Using the SysTick timer
 //! ```
 //! let cp = cortex_m::peripheral::Peripherals::take().unwrap();
-//! let mut delay = cp.SYST.delay(&rcc.clocks);
+//! let mut delay = cp.SYST.delay(&mut rcc);
 //! loop {
 //!     // ... do something here
 //!     delay.delay(10.millis());

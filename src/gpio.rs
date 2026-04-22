@@ -61,7 +61,7 @@
 //! These pins are used by the DBG peripheral by default. To use them in your program, you need to
 //! disable that peripheral. This is done using the [rcc::APB::disable_dbg](../rcc/struct.APB.html#method.disable_dbg) function
 
-use crate::pac;
+use crate::{pac, rcc::Rcc};
 use core::marker::PhantomData;
 
 mod erased;
@@ -94,13 +94,13 @@ pub trait GpioExt {
     /// Splits the GPIO block into independent pins and registers
     ///
     /// This resets the state of the GPIO block
-    fn split(self) -> Self::Parts;
+    fn split(self, rcc: &mut Rcc) -> Self::Parts;
 
     /// Splits the GPIO block into independent pins and registers without resetting its state
     ///
     /// # Safety
     /// Make sure that all pins modes are set in reset state.
-    unsafe fn split_without_reset(self) -> Self::Parts;
+    unsafe fn split_without_reset(self, rcc: &mut Rcc) -> Self::Parts;
 }
 
 /// Marker trait for active states.
@@ -415,8 +415,7 @@ macro_rules! gpio {
         pub mod $gpiox {
 
             use crate::{
-                rcc::{Enable, Reset},
-                pac::RCC,
+                rcc::{Enable, Reset, Rcc},
                 pac::$GPIOX
             };
 
@@ -443,8 +442,7 @@ macro_rules! gpio {
             impl GpioExt for $GPIOX {
                 type Parts = Parts;
 
-                fn split(self) -> Parts {
-                    let rcc = unsafe { &(*RCC::ptr()) };
+                fn split(self, rcc: &mut Rcc) -> Parts {
                     $GPIOX::enable(rcc);
                     $GPIOX::reset(rcc);
 
@@ -455,8 +453,7 @@ macro_rules! gpio {
                     }
                 }
 
-                unsafe fn split_without_reset(self) -> Parts {
-                    let rcc = unsafe { &(*RCC::ptr()) };
+                unsafe fn split_without_reset(self, rcc: &mut Rcc) -> Parts {
                     $GPIOX::enable(rcc);
 
                     Parts {
