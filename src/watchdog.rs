@@ -52,14 +52,6 @@ pub struct Watchdog {
     iwdg: IWDG,
 }
 
-impl watchdog::Watchdog for Watchdog {
-    /// Feed the watchdog, so that at least one `period` goes by before the next
-    /// reset
-    fn feed(&mut self) {
-        self.iwdg.kr.write(|w| w.key().reset());
-    }
-}
-
 /// Timeout configuration for the IWDG
 #[derive(PartialEq, PartialOrd, Clone, Copy)]
 pub struct IwdgTimeout {
@@ -99,15 +91,16 @@ impl Watchdog {
         while rcc.regs.csr.read().lsirdy().is_not_ready() {}
         Self { iwdg }
     }
-}
 
-impl watchdog::WatchdogEnable for Watchdog {
-    type Time = IwdgTimeout;
-    fn start<T>(&mut self, period: T)
-    where
-        T: Into<IwdgTimeout>,
+    /// Feed the watchdog, so that at least one `period` goes by before the next
+    /// reset
+    pub fn feed(&mut self) {
+        self.iwdg.kr.write(|w| w.key().reset());
+    }
+
+    /// Start the watchdog
+    pub fn start(&mut self, period: IwdgTimeout)
     {
-        let time: IwdgTimeout = period.into();
         // Feed the watchdog in case it's already running
         // (Waiting for the registers to update takes sometime)
         self.iwdg.kr.write(|w| w.key().reset());
@@ -116,12 +109,28 @@ impl watchdog::WatchdogEnable for Watchdog {
         self.iwdg.kr.write(|w| w.key().enable());
         // Wait until it's safe to write to the registers
         while self.iwdg.sr.read().pvu().bit() {}
-        self.iwdg.pr.write(|w| w.pr().bits(time.psc));
+        self.iwdg.pr.write(|w| w.pr().bits(period.psc));
         while self.iwdg.sr.read().rvu().bit() {}
-        self.iwdg.rlr.write(|w| w.rl().bits(time.reload));
+        self.iwdg.rlr.write(|w| w.rl().bits(period.reload));
         // Wait until the registers are updated before issuing a reset with
         // (potentially false) values
         while self.iwdg.sr.read().bits() != 0 {}
         self.iwdg.kr.write(|w| w.key().reset());
+    }
+}
+
+impl watchdog::Watchdog for Watchdog {
+    /// Feed the watchdog, so that at least one `period` goes by before the next
+    /// reset
+    fn feed(&mut self) {
+        self.feed();
+    }
+}
+
+impl watchdog::WatchdogEnable for Watchdog {
+    type Time = IwdgTimeout;
+    fn start<T>(&mut self, period: T) where T: Into<IwdgTimeout>
+    {
+        self.start(period.into());
     }
 }
