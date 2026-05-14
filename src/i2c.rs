@@ -1,10 +1,10 @@
 //! API for the integrated I2C peripheral
-use core::marker::PhantomData;
-use core::ops::Deref;
 use crate::{
     rcc::{Enable, Rcc, Reset},
     time::{Hertz, KiloHertz, kHz},
 };
+use core::marker::PhantomData;
+use core::ops::Deref;
 
 // i2c pin definitions
 mod pins;
@@ -14,7 +14,6 @@ use pins::{SclPin, SdaPin};
 mod hal_1;
 // embedded-hal v0.2 traits
 mod hal_02;
-
 
 /// Error enum for I2C peripheral
 #[derive(Debug)]
@@ -175,7 +174,6 @@ impl<I2C, SCLPIN, SDAPIN, MODE> I2c<I2C, SCLPIN, SDAPIN, MODE>
 where
     I2C: Instance,
 {
-
     /// Create an instance of I2C peripheral
     pub fn new(i2c: I2C, pins: (SCLPIN, SDAPIN), speed: KiloHertz, rcc: &mut Rcc) -> Self
     where
@@ -518,7 +516,8 @@ where
         self.i2c.sr1.write(|w| unsafe { w.bits(0) });
 
         // Set up current address, we're waiting on
-        self.i2c.oar1.write(|w| unsafe { w.bits(address as u32) });
+        let addr = u32::from(address) << 1;
+        self.i2c.oar1.write(|w| unsafe { w.bits(addr) });
 
         // set ACK
         self.i2c.cr1.modify(|_, w| w.ack().set_bit());
