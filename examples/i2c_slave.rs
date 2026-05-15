@@ -23,11 +23,11 @@ fn main() -> ! {
         .pclk(24.MHz())
         .freeze(&mut flash);
 
-    let gpioa = p.GPIOA.split(&mut rcc);
+    let gpiob = p.GPIOB.split(&mut rcc);
 
     // Configure pins for I2C
-    let scl = gpioa.pa3.into_alternate_af12();
-    let sda = gpioa.pa2.into_alternate_af12();
+    let scl = gpiob.pb6.into_alternate_af6();
+    let sda = gpiob.pb7.into_alternate_af6();
 
     // Configure I2C as slave with 100kHz rate
     let mut i2c = p.I2C.i2c_slave((scl, sda), 100.kHz(), &mut rcc);

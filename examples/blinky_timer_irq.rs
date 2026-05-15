@@ -41,7 +41,7 @@ fn TIM16() {
 
     let int = INT.get_or_insert_with(|| {
         cortex_m::interrupt::free(|cs| {
-            // Move LED pin here, leaving a None in its place
+            // Move timer here, leaving a None in its place
             GINT.borrow(cs).replace(None).unwrap()
         })
     });

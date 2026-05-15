@@ -334,6 +334,18 @@ where
         self.i2c.sr1.read().txe().bit_is_set()
     }
 
+    /// Returns true if NACK flag is set
+    #[inline]
+    pub fn is_nack(&self) -> bool {
+        self.i2c.sr1.read().af().bit_is_set()
+    }
+
+    /// Clear the NACK
+    #[inline]
+    pub fn clear_nack(&mut self) {
+        self.i2c.sr1.write(|w| w.af().clear_bit());
+    }
+
     #[inline(always)]
     fn prepare(&mut self, addr: u8, is_write: bool) -> Result<(), Error> {
         // Wait until a previous STOP condition finishes.
@@ -423,15 +435,24 @@ where
         Ok(())
     }
     /// Reads like normal but does'n generate start and don't send address
-    fn read_wo_prepare(&mut self, buffer: &mut [u8]) -> Result<(), Error> {
+    /// if `with_ack` is true, a NACK is set before the last byte is read from
+    /// the data register
+    fn read_wo_prepare(&mut self, buffer: &mut [u8], with_ack: bool) -> Result<(), Error> {
         if let Some((last, buffer)) = buffer.split_last_mut() {
             // Read all bytes but not last
             self.read_bytes(buffer)?;
 
-            // Prepare to send NACK then STOP after next byte
-            self.i2c
-                .cr1
-                .modify(|_, w| w.ack().clear_bit().stop().set_bit());
+            if with_ack {
+                // Prepare to send NACK then STOP after next byte
+                self.i2c
+                    .cr1
+                    .modify(|_, w| w.ack().clear_bit().stop().set_bit());
+            } else {
+                // Prepare to send STOP after next byte
+                self.i2c
+                    .cr1
+                    .modify(|_, w| w.stop().set_bit());
+            }
 
             // Receive last byte
             *last = self.recv_byte()?;
@@ -462,15 +483,19 @@ where
         Ok(())
     }
     /// Writes like normal but does'n generate start and don't send address
-    fn write_wo_prepare(&mut self, bytes: &[u8]) -> Result<(), Error> {
+    /// if `with_stop` is true, then a stop condition is set on bus after
+    /// completion of writes
+    fn write_wo_prepare(&mut self, bytes: &[u8], with_stop: bool) -> Result<(), Error> {
         self.write_bytes(bytes)?;
 
-        // Send a STOP condition
-        self.i2c.cr1.modify(|_, w| w.stop().set_bit());
+        if with_stop {
+            // Send a STOP condition
+            self.i2c.cr1.modify(|_, w| w.stop().set_bit());
 
-        // Wait for the STOP to be sent. Otherwise, the interface will still be
-        // busy for a while after this function returns.
-        while self.i2c.cr1.read().stop().bit_is_set() {}
+            // Wait for the STOP to be sent. Otherwise, the interface will still be
+            // busy for a while after this function returns.
+            while self.i2c.cr1.read().stop().bit_is_set() {}
+        }
 
         // Fallthrough is success
         Ok(())
@@ -497,6 +522,18 @@ where
         } else {
             Ok(SlaveAddressMode::Read)
         }
+    }
+
+    /// Write a byte to i2c data register
+    #[inline]
+    pub fn write_byte(&mut self, byte: u8) {
+        self.i2c.dr.write(|w| unsafe { w.bits(u32::from(byte)) });
+    }
+
+    /// Read a byte from i2c data register
+    #[inline]
+    pub fn read_byte(&mut self) -> u8 {
+        self.i2c.dr.read().bits() as u8
     }
 
     /// Wait for a connection from a master device on I2C bus
@@ -527,14 +564,14 @@ where
 
     /// Transmit bytes on I2C bus
     pub fn slave_write_bytes(&mut self, bytes: &[u8]) -> Result<(), Error> {
-        self.write_wo_prepare(bytes)?;
+        self.write_wo_prepare(bytes, false)?;
         self.check_and_clear_error_flags()?;
         Ok(())
     }
 
     /// Receive bytes on I2C bus
     pub fn slave_read_bytes(&mut self, bytes: &mut [u8]) -> Result<(), Error> {
-        self.read_wo_prepare(bytes)?;
+        self.read_wo_prepare(bytes, false)?;
         self.check_and_clear_error_flags()?;
         Ok(())
     }

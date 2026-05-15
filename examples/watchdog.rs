@@ -10,7 +10,6 @@ use core::fmt::Write;
 use cortex_m::peripheral::Peripherals;
 use cortex_m_rt::entry;
 use embedded_hal_02::blocking::delay::DelayMs;
-use embedded_hal_02::watchdog::{Watchdog, WatchdogEnable};
 
 #[entry]
 fn main() -> ! {
@@ -39,7 +38,7 @@ fn main() -> ! {
 
     serial.write_str("RESET \r\n").ok();
 
-    watchdog.start(1.Hz());
+    watchdog.start(1.Hz().into());
     delay.delay_ms(500_u16);
     watchdog.feed();
     serial.write_str("Feed the dog 1st\r\n").ok();

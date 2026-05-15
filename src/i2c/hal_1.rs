@@ -28,14 +28,14 @@ where
                     if i == 0 {
                         self.prepare(address, false)?;
                     }
-                    self.read_wo_prepare(buf)?;
+                    self.read_wo_prepare(buf, true)?;
                     self.check_and_clear_error_flags()?;
                 },
                 Operation::Write(buf) => {
                     if i == 0 {
                         self.prepare(address, true)?;
                     }
-                    self.write_wo_prepare(buf)?;
+                    self.write_wo_prepare(buf, true)?;
                     self.check_and_clear_error_flags()?;
                 },
             }

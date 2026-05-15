@@ -20,7 +20,7 @@ where
         // Prepare for read
         self.prepare(addr, false)?;
 
-        self.read_wo_prepare(buffer)?;
+        self.read_wo_prepare(buffer, true)?;
 
         Ok(())
     }
@@ -37,7 +37,7 @@ where
         self.prepare(addr, false)?;
 
         // Now read in all bytes
-        self.read_wo_prepare(buffer)?;
+        self.read_wo_prepare(buffer, true)?;
 
         // Check and clear flags if they somehow ended up set
         self.check_and_clear_error_flags()?;
@@ -57,7 +57,7 @@ where
         self.prepare(addr, true)?;
 
         // Now write all bytes
-        self.write_wo_prepare(bytes)?;
+        self.write_wo_prepare(bytes, true)?;
 
         // Check and clear flags if they somehow ended up set
         self.check_and_clear_error_flags()?;
