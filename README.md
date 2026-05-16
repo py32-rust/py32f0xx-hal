@@ -6,8 +6,8 @@ py32f0xx-hal
 [![Crates.io](https://img.shields.io/crates/d/py32f0xx-hal.svg)](https://crates.io/crates/py32f0xx-hal)
 [![Crates.io](https://img.shields.io/crates/v/py32f0xx-hal.svg)](https://crates.io/crates/py32f0xx-hal)
 [![docs.rs](https://docs.rs/py32f0xx-hal/badge.svg)](https://docs.rs/py32f0xx-hal/)
-[![dependency status](https://deps.rs/repo/github/[py32-rust/py32f0xx-hal/status.svg)](https://deps.rs/repo/github/py32-rust/py32f0xx-hal)
 [![Continuous integration](https://github.com/creatoy/py32f0xx-hal/workflows/Continuous%20integration/badge.svg)](https://github.com/py32-rust/py32f0xx-hal)
+[![dependency status](https://deps.rs/repo/github/[py32-rust/py32f0xx-hal/status.svg)](https://deps.rs/repo/github/py32-rust/py32f0xx-hal)
 
 [_py32f0xx-hal_](https://github.com/py32-rust/py32f0xx-hal) contains a hardware abstraction on top of the peripheral access API for the puyasemi PY32F0xx family of microcontrollers.
 
@@ -29,10 +29,10 @@ Supported
 | DMA        | N/A        | N/A             | ✅             |
 | EXTI       | ✅         | ✅              | ✅             |
 | USART      | ✅         | ✅              | ✅             |
-| I2C        | ❓         | ❓              | ❓1            |
+| I2C        | ✅         | ✅              | ✅             |
 | SPI        | ✅         | ✅              | ✅             |
 | ADC        | ✅         | ✅              | ✅             |
-| RTC        |            |                 | ✅             |
+| RTC        | N/A        | N/A             | ✅             |
 | FLASH      |            |                 |                |
 | COMP       |            |                 |                |
 | Timer(PWM) | ✅         | ✅              | ✅             |
@@ -45,8 +45,6 @@ Supported
 - ❓ : Requires demo verification
 - `+` : Async support
 - N/A : Not available
-
-1. I2C is tested for write and write_read on F030
 
 ## TODOs
 
@@ -70,7 +68,7 @@ cortex-m = "0.7.7"
 cortex-m-rt = "0.7.3"
 # Panic behaviour, see https://crates.io/keywords/panic-impl for alternatives
 panic-halt = "0.2.0"
-py32f0xx-hal = { version = "0.5.0", features = ["py32f030"] }
+py32f0xx-hal = { version = "0.6.0", features = ["py32f030"] }
 ```
 
 ## Optional Features
