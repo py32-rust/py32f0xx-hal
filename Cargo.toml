@@ -50,13 +50,20 @@ mfrc522 = { version = "0.8.0", features = ["eh02"] }
 
 [features]
 device-selected = []
-rt = ["py32f0/rt"]
-py32f030 = ["py32f0/py32f030", "device-selected", "with-dma"]
-py32f003 = ["py32f0/py32f003", "device-selected", "with-dma"]
-py32f002a = ["py32f0/py32f002a", "device-selected"]
-py32f002b = ["py32f0/py32f002b", "device-selected"]
+
+# optional peripherals
+with-dma = []
+
+# MCU families
+py32f030 = ["py32f0/rt", "py32f0/py32f030", "device-selected", "with-dma"]
+py32f003 = ["py32f0/rt", "py32f0/py32f003", "device-selected", "with-dma"]
+py32f002a = ["py32f0/rt", "py32f0/py32f002a", "device-selected"]
+py32f002b = ["py32f0/rt", "py32f0/py32f002b", "device-selected"]
 
 defmt = ["dep:defmt"]
+
+# rtic os
+rtic = ["dep:rtic-monotonic"]
 
 # Features based on Flash size (in kbytes)
 flash-16 = []
@@ -72,9 +79,6 @@ ram-3 = []
 ram-4 = []
 ram-6 = []
 ram-8 = []
-
-# optional peripherals
-with-dma = []
 
 # MCU aliases
 #
@@ -92,9 +96,6 @@ py32f003xx8 = ["py32f003", "flash-64", "ram-8"]
 
 py32f002ax5 = ["py32f002a", "flash-20", "ram-3"]
 py32f002bx5 = ["py32f002b", "flash-24", "ram-3"]
-
-# rtic os
-rtic = ["dep:rtic-monotonic"]
 
 [profile.dev]
 debug = true

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 version="nightly"
-features="py32f030,rt"
+features="py32f030,rtic,defmt"
 
 filename="bloat_log_"$version"_"`date -Iminutes`".txt"
 filenamenoopt="bloat_noopt_log_"$version"_"`date -Iminutes`".txt"

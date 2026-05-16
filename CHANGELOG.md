@@ -2,6 +2,48 @@
 
 All notable changes to this project will be documented in this file.
 
+## Unreleased
+
+### Fixed
+
+- Fixed examples to have &mut rcc where added to api's
+- RTC is not available on py32f002a/b families, removed it
+- Fixed tool scripts to remove rt feature
+
+### Added
+
+- Added examples/i2c_slave.rs
+- Moved I2C pins macros to module
+- Added I2C hal_1 and hal_02 modules
+- Implemented Display trait in I2c::Error
+- Implemented interrupt handling in I2C
+- Implemented Slave Mode in I2C
+- Added an I2cExt trait with constructors
+- Implemented status flag interrogation methods in I2c
+- Added Deref trait implementation to Rcc
+- Implemented Display trait in Serial::Error
+
+### Changed
+
+- Adc::new requires &mut Rcc
+- GPIOX::split/split_without_reset requires &mut Rcc
+- Serial::new requires &mut Rcc
+- Spi::new requires &mut Rcc
+- Spi::with_rx/tx_dma requires &mut Rcc
+- Timer::<constructors> requires &mut Rcc
+- I2c now has a Mode Parameter for Master/Slave
+- Watchdog has implemented start and feed methods without needing embedded_hal v0.2.7
+- Updated embedded-io to v0.7.1
+- Updated panic-halt to v1.0
+- Updated panic-probe to v1.0
+- Updated defmt to v1.0
+- Updated defmt-rtt to v1.0
+- Updated mfrc522 to v0.8.0
+
+### Removed
+
+- feature `rt` is now automatically selected for every MCU family
+
 ## v0.5.0 - 2026-04-16
 
 ### Fixed

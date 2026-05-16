@@ -28,10 +28,9 @@ def main():
 
     crate_info = cargo_meta["packages"][0]
     features = [
-        "{},defmt,rt,rtic".format(x)
+        "{},defmt,rtic".format(x)
         for x in crate_info["features"].keys()
         if x != "device-selected"
-        and x != "rt"
         and x != "rtic"
         and x != "defmt"
         and x != "with-dma"

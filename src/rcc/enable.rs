@@ -36,6 +36,7 @@ macro_rules! bus {
     };
 }
 
+#[cfg(any(feature = "py32f003", feature = "py32f030"))]
 bus! {
     RTC => (APB, apbenr1, 10),
 }
