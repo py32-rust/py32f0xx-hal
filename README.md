@@ -21,7 +21,7 @@ Supported
 * __py32f002a__ (py32f002ax5)
 * __py32f002b__ (py32f002bx5)
 
-| Family     |    F002A   |   F002A         | F030/F003      |
+| Family     |    F002A   |   F002B         | F030/F003      |
 | ---------- | ---------- | --------------- |--------------- |
 | RCC        | ✅         | ✅              | ✅             |
 | GPIO       | ✅         | ✅              | ✅             |
@@ -32,7 +32,7 @@ Supported
 | I2C        | ❓         | ❓              | ❓1            |
 | SPI        | ✅         | ✅              | ✅             |
 | ADC        | ✅         | ✅              | ✅             |
-| RTC        | ✅         | ✅              | ✅             |
+| RTC        |            |                 | ✅             |
 | FLASH      |            |                 |                |
 | COMP       |            |                 |                |
 | Timer(PWM) | ✅         | ✅              | ✅             |
@@ -77,7 +77,6 @@ py32f0xx-hal = { version = "0.5.0", features = ["py32f030"] }
 
 - __rtic__ this feature includes a `monotonic` timer module for use with that crate
 - __defmt__ Adds ```derive(defmt::Format)``` to `Error` types in this crate
-- __rt__ Enables the `rt` feature in the `py32f0` crate
 
 If you are unfamiliar with embedded development using Rust, there are a number of fantastic resources available to help.
 
