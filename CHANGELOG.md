@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.6.1 - 2026-08-09
+
+### Fixed
+
+- Issue #14. Setting gpio pull-up/down was done incorrectly.
+
+### Changed
+
+- Updated py32f0 crate to v0.2.2. This version fixes the STOP field in register CR2 of usart peripherals
+- Updated defmt to v1.1
+- Updated defmt-rtt to v1.3
+
+### Removed
+
+### Added
+
 ## v0.6.0 - 2026-05-16
 
 ### Fixed

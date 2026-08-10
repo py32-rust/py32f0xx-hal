@@ -1092,13 +1092,18 @@ impl<const P: char, const N: u8, M> Pin<P, N, M> {
 
         let offset2 = 2 * N;
         // set pull up/down if necessary
+        //  00: No pull-up or pull-down
+        //  01: Pull-up
+        //  10: Pull-down
+        //  11: Reserved
+        let mut pupdv = 0b00;
         if let Some(pull) = MODE::PULL {
-            let pupdv = if pull { 0b01 } else { 0b11 };
-            unsafe {
-                gpio.pupdr
-                    .modify(|r, w| w.bits((r.bits() & !(0b11 << offset2)) | (pupdv << offset2)))
-            };
+            pupdv = if pull { 0b01 } else { 0b10 };
         }
+        unsafe {
+            gpio.pupdr
+                .modify(|r, w| w.bits((r.bits() & !(0b11 << offset2)) | (pupdv << offset2)))
+        };
 
         // set the mode
         let mv: u8 = MODE::MODE.into();
