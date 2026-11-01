@@ -175,11 +175,16 @@ where
     I2C: Instance,
 {
     /// Create an instance of I2C peripheral
-    pub fn new(i2c: I2C, pins: (SCLPIN, SDAPIN), speed: KiloHertz, rcc: &mut Rcc) -> Self
+    pub fn new(i2c: I2C, mut pins: (SCLPIN, SDAPIN), speed: KiloHertz, rcc: &mut Rcc) -> Self
     where
         SCLPIN: SclPin<I2C>,
         SDAPIN: SdaPin<I2C>,
     {
+        // Alternate-function pins are push-pull by default; I2C lines must be open-drain,
+        // otherwise the MCU drives SDA high against the slave's ACK and SCL against clock
+        // stretching.
+        pins.0.set_open_drain();
+        pins.1.set_open_drain();
         // Enable clock for I2C
         I2C::enable(rcc);
         // Reset I2C

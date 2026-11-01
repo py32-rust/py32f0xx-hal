@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## Unreleased
+
+### Fixed
+
+- HSI frequencies other than the reset default ran on the 8 MHz trim: `freeze()` changed only
+  `HSI_FS` and kept `HSI_TRIM`, so e.g. the default 24 MHz sysclk was off by several percent and
+  UART baud rates failed. The factory calibration word for the selected frequency is now loaded
+  from system memory together with `HSI_FS`, as Puya's HAL does (py32f030/py32f003/py32f002a).
+- I2C pins were left push-pull (alternate-function modes default to push-pull). The I2C
+  constructor now sets both pins to open-drain.
+
 ## v0.6.1 - 2026-08-09
 
 ### Fixed

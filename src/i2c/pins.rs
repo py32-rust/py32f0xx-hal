@@ -5,9 +5,17 @@ use crate::{
 };
 
 /// Trait for identifying SCL pins
-pub trait SclPin<I2C> {}
+pub trait SclPin<I2C> {
+    /// Configure the pin's output as open-drain, as I2C requires
+    #[doc(hidden)]
+    fn set_open_drain(&mut self);
+}
 /// Trait for identifying SDA pins
-pub trait SdaPin<I2C> {}
+pub trait SdaPin<I2C> {
+    /// Configure the pin's output as open-drain, as I2C requires
+    #[doc(hidden)]
+    fn set_open_drain(&mut self);
+}
 
 macro_rules! i2c_pins {
     ($($I2C:ident => {
@@ -16,10 +24,18 @@ macro_rules! i2c_pins {
     })+) => {
         $(
             $(
-                impl SclPin<crate::pac::$I2C> for $scl {}
+                impl SclPin<crate::pac::$I2C> for $scl {
+                    fn set_open_drain(&mut self) {
+                        self.set_output_open_drain()
+                    }
+                }
             )+
             $(
-                impl SdaPin<crate::pac::$I2C> for $sda {}
+                impl SdaPin<crate::pac::$I2C> for $sda {
+                    fn set_open_drain(&mut self) {
+                        self.set_output_open_drain()
+                    }
+                }
             )+
         )+
     }
