@@ -575,6 +575,15 @@ impl<const P: char, const N: u8, MODE> Pin<P, N, MODE> {
         let gpio = unsafe { &(*gpiox::<P>()) };
         gpio.idr.read().bits() & (1 << N) == 0
     }
+
+    /// Set the output type to open-drain, keeping the current mode. Alternate-function
+    /// modes are push-pull by default; peripherals like I2C need open-drain outputs.
+    #[inline(always)]
+    pub(crate) fn set_output_open_drain(&mut self) {
+        let gpio = unsafe { &(*gpiox::<P>()) };
+        gpio.otyper
+            .modify(|r, w| unsafe { w.bits(r.bits() | (1 << N)) });
+    }
 }
 
 impl<const P: char, const N: u8, MODE> Pin<P, N, MODE>

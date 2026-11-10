@@ -292,6 +292,24 @@ mod inner {
     }
 
     fn hsi_enable(rcc: &mut RCC, fs: &HSIFreq) {
+        // Writing HSI_FS alone keeps the trim of the previous frequency (the 8 MHz trim after
+        // reset), so any other HSI frequency is off by several percent and e.g. UART baud
+        // rates fail. Load the factory calibration word for the selected frequency instead,
+        // like Puya's HAL does with RCC_HSICALIBRATION_xxMHz: one word per frequency at
+        // 0x1FFF_0F00 + 4 * HSI_FS, holding HSI_FS[15:13] | HSI_TRIM[12:0].
+        #[cfg(any(feature = "py32f030", feature = "py32f003", feature = "py32f002a"))]
+        {
+            const HSI_CAL_BASE: u32 = 0x1FFF_0F00;
+            let fs_bits = *fs as u32;
+            // NOTE(unsafe) read of a factory-programmed word in system memory
+            let trim =
+                unsafe { core::ptr::read_volatile((HSI_CAL_BASE + 4 * fs_bits) as *const u32) }
+                    & 0x1FFF;
+            rcc.icscr.modify(|r, w| unsafe {
+                w.bits((r.bits() & 0xFFFF_0000) | (fs_bits << 13) | trim)
+            });
+        }
+        #[cfg(not(any(feature = "py32f030", feature = "py32f003", feature = "py32f002a")))]
         rcc.icscr
             .modify(|_, w| w.hsi_fs().variant(fs.clone().into()));
         rcc.cr.modify(|_, w| w.hsion().set_bit());
